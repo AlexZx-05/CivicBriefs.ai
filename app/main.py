@@ -8,6 +8,9 @@ from app.api.routes.news import router as news_router
 from app.web.pages import render_dashboard_page, render_portal_page
 
 app = FastAPI(title="CivicBriefs.AI", version="0.1.0")
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "CivicBriefs backend running 🚀"}
 
 app.add_middleware(
     CORSMiddleware,
