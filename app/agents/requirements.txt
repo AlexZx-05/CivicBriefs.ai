@@ -2,7 +2,8 @@ fastapi
 uvicorn
 requests
 beautifulsoup4
-pymongo
+pydantic
 python-dotenv
-nltk
 jinja2
+httpx
+pymongo
