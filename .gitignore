@@ -1,0 +1,9 @@
+.env
+__pycache__/
+.venv/
+data/
+chroma_store/
+app/agents/models/
+*.pdf
+*.json
+*.log
