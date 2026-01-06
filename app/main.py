@@ -3,7 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from app.api.routes.agents import router as agents_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.news import router as news_router
 from app.web.pages import render_dashboard_page, render_portal_page
@@ -19,7 +18,6 @@ app.add_middleware(
 )
 
 # Include the News Agent router
-app.include_router(agents_router)
 app.include_router(auth_router)
 app.include_router(news_router)
 
