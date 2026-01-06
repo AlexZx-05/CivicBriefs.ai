@@ -215,57 +215,43 @@ class Embedder:
 # =========================
 # MAIN FUNCTION
 # =========================
-def collect_news_embeddings(from_api=True,
-                            query="UPSC OR civil services OR current affairs",
-                            fetch_limit=25,
-                            extra_urls=None):
-
-    logger.info("News Collection Started")
+def collect_news_embeddings(
+    from_api: bool = True,
+    query: str = "UPSC OR civil services OR current affairs",
+    fetch_limit: int = 25,
+    extra_urls: Optional[List[str]] = None,
+):
+    logger.info("=== Starting lightweight news system (NO embeddings) ===")
 
     fetcher = NewsFetcher()
-    embedder = Embedder()
+    docs: List[Dict[str, Any]] = []
 
-    docs = []
-
-    articles = fetcher.fetch_today(q=query, page_size=fetch_limit) if from_api else []
+    articles = []
+    if from_api:
+        articles = fetcher.fetch_today(q=query, page_size=fetch_limit)
+        logger.info(f"Got {len(articles)} articles from News API")
 
     for art in articles:
         url = art.get("url")
         title = art.get("title", "")
         desc = art.get("description", "")
-
-        if not url:
-            continue
+        src = (art.get("source") or {}).get("name", "newsapi")
 
         text = scrape_article(url)
         if not text or len(text) < 100:
             text = desc or title
 
         text = clean_text(text)
-
-        if len(text) < 100:
+        if len(text) < 80:
             continue
 
-        chunks = chunk_text_by_sentences(text)
-        if not chunks:
-            continue
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "text": text[:1200],
+            "metadata": {"source": src, "url": url, "title": title}
+        })
 
-        embeddings = embedder.embed(chunks)
-
-        for i, c in enumerate(chunks):
-            docs.append({
-                "id": str(uuid.uuid4()),
-                "text": c,
-                "metadata": {
-                    "source": "newsapi",
-                    "url": url,
-                    "title": title,
-                    "chunk_index": i
-                },
-                "embedding": embeddings[i]
-            })
-
-    logger.info(f"Collected {len(docs)} news chunks successfully")
+    logger.info(f"=== Lightweight news collected: {len(docs)} ===")
     return docs
 
 
