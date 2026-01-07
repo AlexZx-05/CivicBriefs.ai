@@ -1,51 +1,63 @@
 from __future__ import annotations
-from typing import Dict, Optional, Protocol, List
-from datetime import datetime, timezone
+import bcrypt
+import uuid
+from typing import Dict
 
 
-class UserStoreProtocol(Protocol):
-    def create_user(self, name: str, email: str, password_hash: str) -> Dict:
-        ...
-
-    def get_user_by_email(self, email: str) -> Optional[Dict]:
-        ...
-
-
-# ----------------------------
-# SIMPLE IN MEMORY STORE
-# ----------------------------
-class InMemoryUserStore(UserStoreProtocol):
+class InMemoryUserStore:
     def __init__(self):
-        self.users: List[Dict] = []
+        self.users: Dict[str, dict] = {}
+        self.sessions: Dict[str, str] = {}
 
-    def create_user(self, name: str, email: str, password_hash: str) -> Dict:
+    # ---------- CREATE USER ----------
+    def create_user(self, *, name: str, email: str, password: str, phone_number: str | None):
         email = email.lower().strip()
 
-        # prevent duplicate email
-        for u in self.users:
+        # check duplicate
+        for u in self.users.values():
             if u["email"] == email:
                 raise ValueError("User already exists")
 
+        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+        user_id = str(uuid.uuid4())
         user = {
+            "id": user_id,
             "name": name.strip(),
             "email": email,
-            "password_hash": password_hash,
-            "created_at": datetime.now(timezone.utc),
+            "password_hash": hashed,
+            "phone_number": phone_number,
         }
 
-        self.users.append(user)
+        self.users[user_id] = user
         return user
 
-    def get_user_by_email(self, email: str) -> Optional[Dict]:
+    # ---------- LOGIN ----------
+    def verify_credentials(self, *, email: str, password: str):
         email = email.lower().strip()
-        for u in self.users:
-            if u["email"] == email:
-                return u
-        return None
+
+        for user in self.users.values():
+            if user["email"] == email:
+                if bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
+                    return user
+                raise ValueError("Invalid password")
+
+        raise ValueError("User not found")
+
+    # ---------- SESSION ----------
+    def create_session(self, *, user_id: str):
+        token = str(uuid.uuid4())
+        self.sessions[token] = user_id
+        return token
+
+    def resolve_token(self, token: str):
+        user_id = self.sessions.get(token)
+        if not user_id:
+            return None
+        return self.users.get(user_id)
+
+    def drop_session(self, token: str):
+        self.sessions.pop(token, None)
 
 
-def _build_user_store() -> UserStoreProtocol:
-    return InMemoryUserStore()
-
-
-user_store: UserStoreProtocol = _build_user_store()
+user_store = InMemoryUserStore()
