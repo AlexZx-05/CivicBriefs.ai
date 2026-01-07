@@ -1,7 +1,8 @@
-# News embeddings temporarily disabled for Railway stability
+# News embeddings disabled for Railway stability
+# Prevents heavy model loading
 
 def collect_news_embeddings():
     return {
         "status": "disabled",
-        "reason": "Embedding model disabled to prevent Railway crashes"
+        "reason": "SentenceTransformer disabled to avoid Railway crash"
     }
