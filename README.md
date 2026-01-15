@@ -580,10 +580,10 @@ Please open issues and PRs on GitHub. If you plan a large change, open an issue 
 This repository does not include a license file by default. Add a LICENSE (e.g., MIT) if you want permissive reuse.
 
 ## Authors
-- [@aryanpratik11](https://github.com/aryanpratik11)    — original project author
+- [@aryanpratik11](https://github.com/aryanpratik11)    — Contributer
 - [@Pavan-Kumar-Z](https://github.com/Pavan-Kumar-Z)      - Contributor
 - [@mrGupta04](https://github.com/mrGupta04)    - Contributor
-- **Deepak Sharma**    - Contributor
+- [AlexZx-05]    - Original project Author 
 - [@aman18Chaurasia](https://github.com/aman18Chaurasia)   - Contributor
 - Contributors — see GitHub repo for full list
 
