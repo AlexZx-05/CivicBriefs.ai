@@ -8,6 +8,10 @@ LOCAL_LLM_ENDPOINT = os.getenv(
     "LOCAL_LLM_ENDPOINT",
     "http://localhost:8000/v1/chat/completions"
 )
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:8005")
+OPENROUTER_APP_NAME = os.getenv("OPENROUTER_APP_NAME", "CivicBriefs.ai")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
 DEFAULT_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", 512))
 DEFAULT_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", 0.1))
@@ -26,6 +30,7 @@ def local_llama_call(
     """
 
     payload = {
+        "model": "local-llama",
         "messages": [
             {"role": "user", "content": prompt}
         ],
@@ -34,6 +39,16 @@ def local_llama_call(
         "stream": False
     }
     headers = {"Content-Type": "application/json"}
+    endpoint_lower = (endpoint or "").lower()
+    is_openrouter = "openrouter.ai" in endpoint_lower
+    if is_openrouter:
+        if not OPENROUTER_API_KEY:
+            logger.warning("local_llama_call: OPENROUTER_API_KEY missing; skipping remote LLM call")
+            return ""
+        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+        headers["HTTP-Referer"] = OPENROUTER_SITE_URL
+        headers["X-Title"] = OPENROUTER_APP_NAME
+        payload["model"] = OPENROUTER_MODEL
 
     try:
         logger.debug(f"Calling LLM endpoint={endpoint}")

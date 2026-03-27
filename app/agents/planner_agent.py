@@ -438,6 +438,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 LOCAL_LLM_ENDPOINT = os.environ.get("LOCAL_LLM_ENDPOINT", "http://localhost:8000/v1/chat/completions")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:8005")
+OPENROUTER_APP_NAME = os.getenv("OPENROUTER_APP_NAME", "CivicBriefs.ai")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 PLANNER_MEMORY_PATH = os.environ.get("PLANNER_MEMORY_PATH", "planner_memory.json")
 
 DAY_HEADERS = [
@@ -481,12 +486,23 @@ def local_llama_call(
     """Single robust LLM call. Returns assistant content or empty string on failure."""
 
     payload = {
+        "model": "local-llama",
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
         "temperature": float(temperature),
         "stream": False,
     }
     headers = {"Content-Type": "application/json"}
+    endpoint_lower = (endpoint or "").lower()
+    is_openrouter = "openrouter.ai" in endpoint_lower
+    if is_openrouter:
+        if not OPENROUTER_API_KEY:
+            logger.warning("local_llama_call: OPENROUTER_API_KEY missing; skipping remote LLM call")
+            return ""
+        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+        headers["HTTP-Referer"] = OPENROUTER_SITE_URL
+        headers["X-Title"] = OPENROUTER_APP_NAME
+        payload["model"] = OPENROUTER_MODEL
     session = _requests_session_with_retries()
     try:
         logger.debug("Calling local LLM server at %s", endpoint)
@@ -503,8 +519,15 @@ def local_llama_call(
                     return str(choice["text"]).strip()
         logger.warning("LLM returned unexpected structure: %s", list(data.keys()))
         return ""
+    except requests.exceptions.HTTPError as exc:
+        status_code = getattr(exc.response, "status_code", None)
+        if status_code == 401:
+            logger.warning("LLM request unauthorized (401). Check OPENROUTER_API_KEY / endpoint configuration.")
+        else:
+            logger.warning("LLM request failed: %s", exc)
+        return ""
     except Exception as exc:  # pragma: no cover - network errors handled at runtime
-        logger.exception("LLM request failed: %s", exc)
+        logger.warning("LLM request failed: %s", exc)
         return ""
 
 
@@ -524,6 +547,70 @@ class LLMSchedulePlanner:
         # FORCE calendar sync disabled (since ics library missing on Railway)
         self.calendar_sync_enabled = False
         self.calendar_tool = None
+
+    def build_schedule_from_percentages(self, section_percentages: Dict[str, float]) -> Dict[str, Any]:
+        """Build a weekly schedule payload from section accuracy percentages.
+
+        Always returns a safe payload; never raises due to LLM/network issues.
+        """
+        clean_scores: Dict[str, float] = {}
+        for section, score in (section_percentages or {}).items():
+            try:
+                clean_scores[section] = float(score)
+            except (TypeError, ValueError):
+                clean_scores[section] = 0.0
+
+        if not clean_scores:
+            return {
+                "summary": "No section scores available. Complete one attempt to unlock a personalized weekly plan.",
+                "schedule_text": fallback_schedule_text(),
+                "allocations": {},
+                "source": "fallback",
+            }
+
+        weights = compute_subject_weights_from_percentages(clean_scores)
+        section_count = max(1, len(clean_scores))
+        total_hours = 42.0
+        extra_hours = 6.0
+        base_total = max(0.0, total_hours - extra_hours)
+        base_each = round(base_total / section_count, 2)
+        base_hours = {section: base_each for section in clean_scores.keys()}
+        allocations = allocate_weekly_hours(weights, base_hours, extra_hours=extra_hours)
+        summary_text = make_summary_text(allocations)
+        memory_hint = self.memory.get("last_summary", "")
+
+        prompt = (
+            "You are an expert UPSC study planner.\n"
+            "Create a practical 7-day schedule using the provided section scores and weekly hour allocation.\n"
+            "Rules:\n"
+            "1. Output plain text only.\n"
+            "2. Use headings Day 1 ... Day 7.\n"
+            "3. Include revision + MCQ practice daily.\n"
+            "4. Give more time to lower-scoring sections.\n\n"
+            f"Section scores: {json.dumps(clean_scores)}\n"
+            f"Weekly allocations (hours): {json.dumps(allocations)}\n"
+            f"Current snapshot: {summary_text}\n"
+            f"Previous summary (if any): {memory_hint}\n"
+        )
+
+        schedule_text = local_llama_call(prompt=prompt, max_tokens=1200, temperature=0.12).strip()
+        if not schedule_text:
+            schedule_text = fallback_schedule_text()
+            source = "fallback"
+        else:
+            source = "llm"
+
+        self.memory["last_summary"] = summary_text
+        self.memory["last_generated_at"] = datetime.utcnow().isoformat()
+        self.memory["last_allocations"] = allocations
+        save_memory(self.memory, self.memory_path)
+
+        return {
+            "summary": summary_text,
+            "schedule_text": schedule_text,
+            "allocations": allocations,
+            "source": source,
+        }
 
 def _env_flag(name: str, *, default: bool = False) -> bool:
     value = os.getenv(name)
@@ -575,20 +662,31 @@ class PlannerAgent:
     ) -> None:
         self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         self.model = model
+        self._db_available = True
 
         uri = mongo_uri or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         db_name = mongo_db or os.getenv("MONGODB_DB", "civicbriefs")
         questions_coll_name = questions_collection or os.getenv("MONGODB_QUESTIONS_COLLECTION", "questions")
 
-        if mongo_uri:
-            self._client: MongoClient = _build_client(uri)
-        else:
-            self._client = get_mongo_client()
+        self._client: Optional[MongoClient] = None
+        self._db: Optional[Database] = None
+        self._questions: Optional[Collection] = None
+        self._users: Optional[Collection] = None
+        self._reports: Optional[Collection] = None
 
-        self._db: Database = self._client[db_name]
-        self._questions: Collection = self._db[questions_coll_name]
-        self._users: Collection = self._db[users_collection]
-        self._reports: Collection = self._db[reports_collection]
+        try:
+            if mongo_uri:
+                self._client = _build_client(uri)
+            else:
+                self._client = get_mongo_client()
+
+            self._db = self._client[db_name]
+            self._questions = self._db[questions_coll_name]
+            self._users = self._db[users_collection]
+            self._reports = self._db[reports_collection]
+        except Exception as exc:
+            self._db_available = False
+            logger.warning("PlannerAgent running in offline mode (Mongo unavailable): %s", exc)
         self.schedule_planner = LLMSchedulePlanner()
 
     # ------------------------------------------------------------------
@@ -597,6 +695,9 @@ class PlannerAgent:
     def prepare_test(self, questions_per_section: int = 15) -> Dict[str, Any]:
         if questions_per_section <= 0:
             raise ValueError("questions_per_section must be positive")
+
+        if not self._db_available or self._questions is None:
+            return self._prepare_test_from_mock(questions_per_section)
 
         try:
             return self._prepare_test_from_db(questions_per_section)
@@ -608,6 +709,8 @@ class PlannerAgent:
             return self._prepare_test_from_mock(questions_per_section)
 
     def _prepare_test_from_db(self, questions_per_section: int) -> Dict[str, Any]:
+        if self._questions is None:
+            raise ValueError("Question bank unavailable")
         test_id = str(uuid.uuid4())
         sections_payload: Dict[str, Dict[str, Any]] = {}
         total_questions = 0
@@ -743,8 +846,8 @@ class PlannerAgent:
     # Submission evaluation
     # ------------------------------------------------------------------
     def evaluate_test(self, user_id: Optional[str], answers: Dict[str, str]) -> Dict[str, Any]:
-        if not answers:
-            raise ValueError("answers payload cannot be empty")
+        if answers is None:
+            answers = {}
 
         question_ids = list(answers.keys())
         mock_question_ids = [qid for qid in question_ids if qid.startswith("mock-")]
@@ -762,6 +865,8 @@ class PlannerAgent:
         question_map: Dict[str, Dict[str, Any]] = {}
 
         if id_filters:
+            if self._questions is None:
+                raise ValueError("Question bank unavailable for submitted DB question ids")
             query = id_filters[0] if len(id_filters) == 1 else {"$or": id_filters}
             try:
                 cursor = self._questions.find(
@@ -905,7 +1010,9 @@ class PlannerAgent:
 
     def _persist_score(self, user_id: Optional[str], scores: Dict[str, float]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
         if not user_id:
-            return None, {"saved": False, "message": "user_id not supplied — result not persisted"}
+            return None, {"saved": False, "message": "user_id not supplied - result not persisted"}
+        if not self._db_available or self._users is None:
+            return None, {"saved": False, "message": "database unavailable - result not persisted"}
 
         user_doc = self._find_user(user_id)
         if not user_doc:
@@ -935,6 +1042,9 @@ class PlannerAgent:
         user_id: Optional[str],
         user_email: Optional[str] = None,
     ) -> Dict[str, Any]:
+        if not self._db_available or self._reports is None:
+            return {"saved": False, "message": "database unavailable"}
+
         doc = {
             "date": datetime.utcnow(),
             "user_id": user_id,
@@ -955,6 +1065,9 @@ class PlannerAgent:
         user_email: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
+        if not self._db_available or self._reports is None:
+            return None
+
         if not user_email and not user_id:
             return None
 
@@ -1055,6 +1168,9 @@ class PlannerAgent:
         return metadata
 
     def _find_user(self, identifier: str) -> Optional[Dict[str, Any]]:
+        if not self._db_available or self._users is None:
+            return None
+
         identifier = identifier.strip()
         if ObjectId.is_valid(identifier):
             user = self._users.find_one({"_id": ObjectId(identifier)})
@@ -1237,10 +1353,15 @@ class PlannerAgent:
         return "\n".join(lines)
 
     def _call_llm(self, prompt: str) -> Dict[str, Any]:
-        url = "https://api.openai.com/v1/chat/completions"
+        url = os.getenv("PLANNER_LLM_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+        endpoint_lower = url.lower()
+        is_openrouter = "openrouter.ai" in endpoint_lower
+        api_key = self.api_key or OPENROUTER_API_KEY
+        if not api_key:
+            raise ValueError("No API key configured for planner LLM call.")
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {
-            "model": self.model,
+            "model": OPENROUTER_MODEL if is_openrouter else (self.model or OPENAI_MODEL),
             "messages": [
                 {"role": "system", "content": "You are a UPSC mentor."},
                 {"role": "user", "content": prompt},
@@ -1248,6 +1369,10 @@ class PlannerAgent:
             "temperature": 0.7,
             "max_tokens": 900,
         }
+        headers["Authorization"] = f"Bearer {api_key}"
+        if is_openrouter:
+            headers["HTTP-Referer"] = OPENROUTER_SITE_URL
+            headers["X-Title"] = OPENROUTER_APP_NAME
         response = requests.post(url, headers=headers, json=payload, timeout=25)
         response.raise_for_status()
         data = response.json()

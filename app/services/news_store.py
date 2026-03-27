@@ -35,6 +35,18 @@ def _sanitize(payload: Any) -> Any:
         return payload
 
 
+def _payload_has_articles(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    structure = payload.get("structure") if isinstance(payload.get("structure"), dict) else payload
+    if not isinstance(structure, dict):
+        return False
+    for _, items in structure.items():
+        if isinstance(items, list) and len(items) > 0:
+            return True
+    return False
+
+
 class NewsStore:
     """Persist generated capsules to MongoDB."""
 
@@ -68,8 +80,22 @@ class NewsStore:
         date_str = _coerce_date(capsule_date)
         now = datetime.now(timezone.utc)
         prepared_payload = _sanitize(capsule_payload)
+        has_articles = _payload_has_articles(prepared_payload)
 
         try:
+            if not has_articles:
+                existing = self.collection.find_one(
+                    {"date": date_str, "type": normalized_type},
+                    projection={"news_capsule": 1},
+                )
+                if existing and _payload_has_articles(existing.get("news_capsule")):
+                    logger.info(
+                        "news_store: skipping overwrite for %s/%s because new payload has no articles.",
+                        date_str,
+                        normalized_type,
+                    )
+                    return True
+
             self.collection.update_one(
                 {"date": date_str, "type": normalized_type},
                 {

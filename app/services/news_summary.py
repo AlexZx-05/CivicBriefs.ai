@@ -127,42 +127,66 @@ class NewsSummaryService:
     # ------------------------------------------------------------------
     def _load_snapshots(self, window: str | None = None) -> List[Dict[str, object]]:
         if self.collection is not None:
-            return self._load_snapshots_from_db(window=window)
+            snapshots = self._load_snapshots_from_db(window=window)
+            if snapshots:
+                return snapshots
 
-        # File-based ingestion disabled now that we rely on MongoDB.
-        # snapshots: List[Dict[str, object]] = []
-        # if self.base_file.exists():
-        #     snapshots.append(self._build_snapshot(self.base_file))
-        # if self.archive_dir.exists():
-        #     for path in sorted(self.archive_dir.glob("*.json")):
-        #         snapshots.append(self._build_snapshot(path))
-        # snapshots.sort(key=lambda item: item["date"])
-        raise FileNotFoundError("MongoDB collection unavailable and local files are disabled.")
+        # Fallback to local files when DB has no capsule rows for requested window.
+        snapshots: List[Dict[str, object]] = []
+        if self.base_file.exists():
+            snapshots.append(self._build_snapshot(self.base_file))
+        if self.archive_dir.exists():
+            for path in sorted(self.archive_dir.glob("*.json")):
+                snapshots.append(self._build_snapshot(path))
+        snapshots.sort(key=lambda item: item["date"])
+        if snapshots:
+            return snapshots
+        raise FileNotFoundError("No news capsule snapshots available.")
 
     def _load_snapshots_from_db(self, *, window: str | None = None) -> List[Dict[str, object]]:
         if self.collection is None:
             return []
 
+        normalized_window = (window or "daily").lower()
         try:
-            query: Dict[str, object]
-            if window:
-                query = {"type": window}
-            else:
-                query = {"type": {"$in": list(self.WINDOW_DAYS.keys())}}
-
-            cursor = (
-                self.collection.find(
-                    query,
-                    projection={"date": 1, "type": 1, "news_capsule": 1},
+            # Prefer exact pre-aggregated documents for requested window.
+            if normalized_window in {"weekly", "monthly"}:
+                query: Dict[str, object] = {"type": normalized_window}
+                cursor = (
+                    self.collection.find(
+                        query,
+                        projection={"date": 1, "type": 1, "news_capsule": 1},
+                    )
+                    .sort("date", 1)
                 )
-                .sort("date", 1)
-            )
+                docs = list(cursor)
+                if not docs:
+                    # Derive weekly/monthly from daily snapshots if pre-aggregates are absent.
+                    query = {"type": "daily"}
+                    cursor = (
+                        self.collection.find(
+                            query,
+                            projection={"date": 1, "type": 1, "news_capsule": 1},
+                        )
+                        .sort("date", 1)
+                    )
+                    docs = list(cursor)
+            else:
+                query = {"type": "daily"}
+                cursor = (
+                    self.collection.find(
+                        query,
+                        projection={"date": 1, "type": 1, "news_capsule": 1},
+                    )
+                    .sort("date", 1)
+                )
+                docs = list(cursor)
         except PyMongoError as exc:
             logger.error("news_summary: failed to fetch snapshots from Mongo: %s", exc)
             raise FileNotFoundError("Unable to load news capsules from database.") from exc
 
         snapshots: List[Dict[str, object]] = []
-        for document in cursor:
+        for document in docs:
             snapshot = self._build_snapshot_from_document(document)
             if snapshot["articles"]:
                 snapshots.append(snapshot)
@@ -336,8 +360,30 @@ class NewsSummaryService:
             line = raw_line.strip()
             if not line:
                 continue
+            line = (
+                line.replace("â€™", "'")
+                .replace("â€œ", '"')
+                .replace("â€", '"')
+                .replace("â€“", "-")
+                .replace("â€”", "-")
+            )
             lowered = line.lower()
             if lowered.startswith("**summary"):
+                current = "summary"
+                continue
+            if lowered.startswith("**in simple words"):
+                current = "summary"
+                continue
+            if lowered.startswith("**why it matters for upsc"):
+                current = "summary"
+                continue
+            if lowered.startswith("**prelims pointers"):
+                current = "summary"
+                continue
+            if lowered.startswith("**mains angle"):
+                current = "summary"
+                continue
+            if lowered.startswith("**key terms"):
                 current = "summary"
                 continue
             if lowered.startswith("**relevant pyq"):

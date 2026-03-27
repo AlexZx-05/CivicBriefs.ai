@@ -3,19 +3,23 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.services.mailer import send_email
 from app.services.subscriber_store import subscriber_store
-from app.services.user_store import user_store   # <-- NO sanitize_user import
+from app.services.user_store import user_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/test")
 def test_auth():
-    return {"message": "Auth route working ✅"}
+    return {"message": "Auth route working"}
 
 
 class SubscriptionRequest(BaseModel):
     name: str
     email: EmailStr
+
+
+class PauseSubscriptionRequest(BaseModel):
+    paused: bool
 
 
 class SignupRequest(BaseModel):
@@ -30,17 +34,27 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=6, max_length=64)
 
 
+def _public_user(user: dict) -> dict:
+    return {
+        "id": user.get("id"),
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "phone_number": user.get("phone_number"),
+        "created_at": user.get("created_at"),
+    }
+
+
 def _parse_token(authorization: str | None = Header(default=None)) -> str:
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header."
+            detail="Missing Authorization header.",
         )
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Authorization header."
+            detail="Invalid Authorization header.",
         )
     return token
 
@@ -50,12 +64,12 @@ def _current_user(token: str = Depends(_parse_token)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired. Please log in again."
+            detail="Session expired. Please log in again.",
         )
     return user, token
 
 
-@router.post("/signup")
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup_user(payload: SignupRequest):
     try:
         user = user_store.create_user(
@@ -65,15 +79,17 @@ def signup_user(payload: SignupRequest):
             phone_number=payload.phone_number,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc)
-        ) from exc
+        error_msg = str(exc)
+        code = (
+            status.HTTP_409_CONFLICT
+            if "already exists" in error_msg.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=error_msg) from exc
 
     token = user_store.create_session(user_id=user["id"])
-
-    # 🚨 IMPORTANT: return user directly (no sanitize_user)
-    return {"token": token, "user": user}
+    subscriber_store.ensure_subscriber(name=user["name"], email=user["email"])
+    return {"token": token, "user": _public_user(user)}
 
 
 @router.post("/login")
@@ -81,23 +97,28 @@ def login_user(payload: LoginRequest):
     try:
         user = user_store.verify_credentials(
             email=payload.email,
-            password=payload.password
+            password=payload.password,
         )
     except ValueError as exc:
+        if "not found" in str(exc).lower() or "password" in str(exc).lower():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password.",
+            ) from exc
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc)
+            detail="Invalid email or password.",
         ) from exc
 
     token = user_store.create_session(user_id=user["id"])
-
-    return {"token": token, "user": user}
+    subscriber_store.ensure_subscriber(name=user["name"], email=user["email"])
+    return {"token": token, "user": _public_user(user)}
 
 
 @router.get("/session")
 def fetch_session(context=Depends(_current_user)):
     user, _ = context
-    return {"user": user}
+    return {"user": _public_user(user)}
 
 
 @router.post("/logout")
@@ -110,23 +131,39 @@ def logout_user(context=Depends(_current_user)):
 @router.post("/subscribe", status_code=status.HTTP_201_CREATED)
 def subscribe_user(request: SubscriptionRequest):
     try:
-        subscriber_store.add_subscriber(
-            name=request.name,
-            email=request.email
-        )
+        subscriber_store.ensure_subscriber(name=request.name, email=request.email)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc)
+            detail=str(exc),
         ) from exc
 
     send_email(
         recipient=request.email,
-        subject="Welcome to CivicBriefs.AI 🎉",
-        body=f"<h3>Hi {request.name},</h3><p>Thanks for subscribing to our UPSC Daily Capsule!</p>"
+        subject="Welcome to CivicBriefs.AI",
+        body=f"<h3>Hi {request.name},</h3><p>Thanks for subscribing to our UPSC Daily Capsule!</p>",
     )
 
     return {
         "status": "success",
-        "message": f"🎉 {request.name}, you’ve been subscribed to CivicBriefs.AI daily capsule!",
+        "message": f"{request.name}, you have been subscribed to CivicBriefs.AI daily capsule.",
     }
+
+
+@router.get("/subscription")
+def get_subscription_status(context=Depends(_current_user)):
+    user, _ = context
+    status_payload = subscriber_store.get_status(email=user["email"])
+    return {"status": "success", **status_payload}
+
+
+@router.post("/subscription/pause")
+def pause_subscription(payload: PauseSubscriptionRequest, context=Depends(_current_user)):
+    user, _ = context
+    try:
+        status_payload = subscriber_store.set_paused(email=user["email"], paused=payload.paused)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    message = "Delivery paused." if status_payload["paused"] else "Delivery resumed."
+    return {"status": "success", "message": message, **status_payload}

@@ -3,8 +3,10 @@ import os
 import logging
 import uuid
 import re
+import warnings
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
+from urllib.parse import urlparse
 from zipfile import BadZipFile
 
 import requests
@@ -43,17 +45,69 @@ from nltk.tokenize import sent_tokenize
 load_dotenv()
 
 logger = logging.getLogger("news_collection")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    ch = logging.StreamHandler()
-    ch.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-    logger.addHandler(ch)
+logger.setLevel(getattr(logging, os.getenv("NEWS_COLLECTION_LOG_LEVEL", "WARNING").upper(), logging.WARNING))
+logger.propagate = True
+
+# Keep transformer/library warnings out of terminal noise for production runs.
+warnings.filterwarnings(
+    "ignore",
+    category=FutureWarning,
+    module=r"transformers\..*",
+)
 
 # Config (env)
 NEWS_API_KEYS = [os.getenv("NEWS_API_KEY1"), os.getenv("NEWS_API_KEY2")]
 SENTENCE_TRANSFORMER_MODEL = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-mpnet-base-v2")
 MAX_CHARS_PER_CHUNK = int(os.getenv("MAX_CHARS_PER_CHUNK", 1500))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200))
+STRICT_SOURCE_FILTER = os.getenv("NEWS_STRICT_SOURCE_FILTER", "1").strip().lower() in {"1", "true", "yes", "on"}
+MIN_STRICT_FILTERED_ARTICLES = max(1, int(os.getenv("NEWS_MIN_STRICT_ARTICLES", "5")))
+
+_DEFAULT_ALLOWED_SOURCE_NAMES = {
+    "reuters",
+    "associated press",
+    "bbc news",
+    "the hindu",
+    "indian express",
+    "business standard",
+    "livemint",
+    "the economic times",
+    "hindustan times",
+    "times of india",
+    "the print",
+    "the wire",
+    "ani news",
+    "pib",
+}
+
+_DEFAULT_BLOCKED_DOMAINS = {
+    "globalresearch.ca",
+}
+
+allowed_names_env = {
+    p.strip().lower()
+    for p in (os.getenv("NEWS_ALLOWED_SOURCE_NAMES", "")).split(",")
+    if p.strip()
+}
+blocked_domains_env = {
+    p.strip().lower()
+    for p in (os.getenv("NEWS_BLOCKED_DOMAINS", "")).split(",")
+    if p.strip()
+}
+
+ALLOWED_SOURCE_NAMES = allowed_names_env or _DEFAULT_ALLOWED_SOURCE_NAMES
+BLOCKED_DOMAINS = blocked_domains_env or _DEFAULT_BLOCKED_DOMAINS
+
+_DEFAULT_FALLBACK_QUERIES = [
+    "India AND current affairs",
+    "UPSC current affairs India government policy",
+    "Parliament OR Supreme Court OR RBI OR Election Commission India",
+]
+FALLBACK_QUERIES = [
+    q.strip()
+    for q in (os.getenv("NEWS_FALLBACK_QUERIES", "")).split("||")
+    if q.strip()
+] or _DEFAULT_FALLBACK_QUERIES
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -72,6 +126,77 @@ def _choose_key() -> Optional[str]:
         if k and k.strip():
             return k.strip()
     return None
+
+
+def _domain_from_url(url: str) -> str:
+    try:
+        host = (urlparse(url).netloc or "").strip().lower()
+        if host.startswith("www."):
+            return host[4:]
+        return host
+    except Exception:
+        return ""
+
+
+def _is_allowed_article_source(article: Dict[str, Any]) -> bool:
+    if not STRICT_SOURCE_FILTER:
+        return True
+
+    source_name = str(((article.get("source") or {}).get("name") or "")).strip().lower()
+    url = str(article.get("url") or "").strip()
+    domain = _domain_from_url(url)
+
+    if domain:
+        for blocked in BLOCKED_DOMAINS:
+            if domain == blocked or domain.endswith(f".{blocked}"):
+                return False
+
+    if source_name and source_name in ALLOWED_SOURCE_NAMES:
+        return True
+
+    # Domain fallback for known mainstream publications
+    mainstream_domain_markers = (
+        "reuters.com",
+        "apnews.com",
+        "bbc.com",
+        "thehindu.com",
+        "indianexpress.com",
+        "business-standard.com",
+        "livemint.com",
+        "economictimes.indiatimes.com",
+        "timesofindia.indiatimes.com",
+        "hindustantimes.com",
+        "theprint.in",
+        "thewire.in",
+        "pib.gov.in",
+    )
+    return any(marker in domain for marker in mainstream_domain_markers)
+
+
+def _is_not_blocked_domain(url: str) -> bool:
+    domain = _domain_from_url(url)
+    if not domain:
+        return True
+    for blocked in BLOCKED_DOMAINS:
+        if domain == blocked or domain.endswith(f".{blocked}"):
+            return False
+    return True
+
+
+def _merge_unique_articles(existing: List[Dict[str, Any]], incoming: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+    if limit <= 0:
+        return []
+    merged = list(existing)
+    seen_urls = {str((a or {}).get("url") or "").strip() for a in merged if (a or {}).get("url")}
+    for item in incoming:
+        if len(merged) >= limit:
+            break
+        url = str((item or {}).get("url") or "").strip()
+        if not url or url in seen_urls:
+            continue
+        merged.append(item)
+        seen_urls.add(url)
+    return merged
 
 # -----------------------
 # News API fetcher
@@ -155,7 +280,11 @@ def fetch_page(url: str, timeout: int = 15) -> Optional[str]:
         logger.warning(f"Timeout fetching {url}")
         return None
     except requests.exceptions.HTTPError as e:
-        logger.warning(f"HTTP error {e.response.status_code} for {url}")
+        status_code = getattr(e.response, "status_code", "unknown")
+        if status_code == 403:
+            logger.info(f"Access blocked (403) for {url}; using API snippet fallback.")
+        else:
+            logger.warning(f"HTTP error {status_code} for {url}")
         return None
     except Exception as e:
         logger.debug(f"fetch_page failed for {url}: {e}")
@@ -210,14 +339,14 @@ def extract_article_text(html: str) -> str:
             logger.debug(f"Extracted text using filtered paragraphs ({len(content_ps)} paragraphs)")
             return text
 
-    logger.warning("Could not extract meaningful article text")
+    logger.debug("Could not extract meaningful article text")
     return ""
 
 def scrape_article(url: str) -> str:
     logger.info(f"Scraping article: {url}")
     html = fetch_page(url)
     if not html:
-        logger.warning(f"No HTML returned for {url}")
+        logger.debug(f"No HTML returned for {url}")
         return ""
     
     text = extract_article_text(html).strip()
@@ -225,7 +354,7 @@ def scrape_article(url: str) -> str:
     if text:
         logger.info(f"Successfully scraped {len(text)} characters from {url}")
     else:
-        logger.warning(f"No text extracted from {url}")
+        logger.debug(f"No text extracted from {url}")
     
     return text
 
@@ -321,7 +450,38 @@ def collect_news_embeddings(
     # 1) From API
     articles = []
     if from_api:
-        articles = fetcher.fetch_today(q=query, page_size=fetch_limit)
+        primary = fetcher.fetch_today(q=query, page_size=fetch_limit)
+        articles = _merge_unique_articles([], primary, fetch_limit)
+
+        # If primary query under-fills, backfill with broader but still UPSC-focused queries.
+        if len(articles) < fetch_limit:
+            for fallback_query in FALLBACK_QUERIES:
+                if len(articles) >= fetch_limit:
+                    break
+                if fallback_query.strip().lower() == query.strip().lower():
+                    continue
+                remaining = max(1, fetch_limit - len(articles))
+                fallback_articles = fetcher.fetch_today(q=fallback_query, page_size=remaining)
+                articles = _merge_unique_articles(articles, fallback_articles, fetch_limit)
+
+        if STRICT_SOURCE_FILTER and articles:
+            before = len(articles)
+            strict_articles = [a for a in articles if _is_allowed_article_source(a)]
+            logger.info("Source filter kept %d/%d articles from trusted outlets.", len(strict_articles), before)
+
+            # Safety fallback: if strict filter yields too few items, keep only non-blocked domains
+            # so capsule still has useful content instead of becoming empty.
+            if len(strict_articles) < MIN_STRICT_FILTERED_ARTICLES:
+                relaxed_articles = [a for a in articles if _is_not_blocked_domain(str((a or {}).get("url") or ""))]
+                if relaxed_articles:
+                    logger.info(
+                        "Strict filter underfilled (%d<%d). Relaxed to domain-only safety filter: %d articles.",
+                        len(strict_articles),
+                        MIN_STRICT_FILTERED_ARTICLES,
+                        len(relaxed_articles),
+                    )
+                    strict_articles = relaxed_articles
+            articles = strict_articles
         logger.info(f"Got {len(articles)} articles from News API")
 
     # process articles from API
@@ -343,10 +503,16 @@ def collect_news_embeddings(
         # Try to scrape article
         text = scrape_article(url)
         
-        # Fallback to description if scraping fails
+        # Fallback to API snippets if scraping fails
         if not text or len(text) < 100:
-            logger.info(f"Using description as fallback for {url}")
-            text = desc or title
+            logger.info(f"Using API text snippet fallback for {url}")
+            text = " ".join(
+                part for part in [
+                    art.get("content", ""),
+                    desc,
+                    title,
+                ] if part
+            )
         
         text = clean_text(text)
         

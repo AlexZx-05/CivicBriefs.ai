@@ -16,6 +16,7 @@ import os
 import json
 import logging
 import uuid
+import warnings
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
@@ -53,15 +54,23 @@ import re
 # -----------------------
 # Config
 # -----------------------
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("news_capsule")
+logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+logging.getLogger("transformers").setLevel(logging.WARNING)
+warnings.filterwarnings("ignore", category=FutureWarning, module=r"transformers\..*")
 
 CHROMA_DIR = Path(os.getenv("CHROMA_PERSIST_DIR", "chroma_store"))
 SENTENCE_MODEL = os.getenv("SENTENCE_TRANSFORMER_MODEL", "all-mpnet-base-v2")
 
 # local Llama server endpoint (OpenAI-compatible)
 LOCAL_LLM_ENDPOINT = os.getenv("LOCAL_LLM_ENDPOINT", "http://localhost:8000/v1/chat/completions")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:8005")
+OPENROUTER_APP_NAME = os.getenv("OPENROUTER_APP_NAME", "CivicBriefs.ai")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+_OPENROUTER_KEY_WARNED = False
 
 TOP_K_CHROMA = int(os.getenv("TOP_K_CHROMA", 3))
 LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", 512))
@@ -151,6 +160,19 @@ def local_llama_call(prompt: str, max_tokens: int = 512, temperature: float = 0.
         "temperature": temperature
     }
     headers = {"Content-Type": "application/json"}
+    endpoint_lower = (endpoint or "").lower()
+    is_openrouter = "openrouter.ai" in endpoint_lower
+    if is_openrouter:
+        global _OPENROUTER_KEY_WARNED
+        if not OPENROUTER_API_KEY:
+            if not _OPENROUTER_KEY_WARNED:
+                logger.warning("local_llama_call: OPENROUTER_API_KEY missing; skipping remote LLM call")
+                _OPENROUTER_KEY_WARNED = True
+            return ""
+        headers["Authorization"] = f"Bearer {OPENROUTER_API_KEY}"
+        headers["HTTP-Referer"] = OPENROUTER_SITE_URL
+        headers["X-Title"] = OPENROUTER_APP_NAME
+        payload["model"] = OPENROUTER_MODEL
     try:
         resp = requests.post(endpoint, json=payload, headers=headers, timeout=timeout)
         resp.raise_for_status()
@@ -186,6 +208,13 @@ def local_llama_call(prompt: str, max_tokens: int = 512, temperature: float = 0.
             return data["content"].strip()
         # nothing useful
         logger.warning("local_llama_call: unexpected response shape: %s", list(data.keys()))
+        return ""
+    except requests.exceptions.HTTPError as e:
+        status_code = getattr(e.response, "status_code", None)
+        if status_code == 401:
+            logger.warning("local_llama_call: unauthorized (401). Check OPENROUTER_API_KEY / model access.")
+            return "__AUTH_FAILURE__"
+        logger.warning("local_llama_call: request failed: %s", e)
         return ""
     except requests.exceptions.RequestException as e:
         logger.warning("local_llama_call: request failed: %s", e)
@@ -329,7 +358,7 @@ def build_pdf_from_markdown(input_md: str, output_pdf: str):
 
     doc.build(story)
     logger.info("PDF created: %s (capsules: %d)", output_pdf, len(parsed))
-    print(f"✅ PDF created successfully: {output_pdf}")
+    print(f"PDF created successfully: {output_pdf}")
 
 # -----------------------
 # Main pipeline
@@ -338,27 +367,36 @@ def run(fetch_limit: int = 30):
     logger.info("Loading embedding model: %s", SENTENCE_MODEL)
     embedder = SentenceTransformer(SENTENCE_MODEL)
 
-    # connect to chroma
+    # connect to chroma (optional)
+    syllabus_col, pyq_col = None, None
     try:
         client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        syllabus_col = client.get_collection(name="upsc_syllabus")
-        pyq_col = client.get_collection(name="upsc_pyq")
+        # Create collections if they do not exist yet, instead of warning.
+        syllabus_col = client.get_or_create_collection(name="upsc_syllabus")
+        pyq_col = client.get_or_create_collection(name="upsc_pyq")
         logger.info("Connected to ChromaDB at %s", CHROMA_DIR)
     except Exception as e:
-        logger.exception("ChromaDB connection error: %s", e)
-        syllabus_col, pyq_col = None, None
+        logger.warning("ChromaDB unavailable: %s", e)
 
     # Check local Llama server quickly (no exception if offline)
     llm_available = False
+    endpoint_lower = (LOCAL_LLM_ENDPOINT or "").lower()
+    is_openrouter = "openrouter.ai" in endpoint_lower
+    if is_openrouter and not OPENROUTER_API_KEY:
+        logger.warning(
+            "OPENROUTER_API_KEY is not set while using OpenRouter endpoint; using fallback summarizer."
+        )
+        llm_available = False
     try:
-        test = requests.get(LOCAL_LLM_ENDPOINT.replace("/v1/chat/completions", "/v1/models"), timeout=3)
-        if test.status_code == 200:
-            llm_available = True
-            logger.info("Local Llama server reachable at %s", LOCAL_LLM_ENDPOINT)
-        else:
-            logger.warning("Local Llama server returned status %s (will fallback to extractive summaries)", test.status_code)
+        if not (is_openrouter and not OPENROUTER_API_KEY):
+            test = requests.get(LOCAL_LLM_ENDPOINT.replace("/v1/chat/completions", "/v1/models"), timeout=3)
+            if test.status_code == 200:
+                llm_available = True
+                logger.info("Local Llama server reachable at %s", LOCAL_LLM_ENDPOINT)
+            else:
+                llm_available = False
     except Exception:
-        logger.warning("Local Llama server not reachable at %s (will fallback to extractive summaries)", LOCAL_LLM_ENDPOINT)
+        llm_available = False
 
     # category embeddings
     logger.info("Computing category embeddings for classification...")
@@ -448,12 +486,11 @@ def run(fetch_limit: int = 30):
         if llm_available:
             logger.info("Calling LLM server for article: %s", art["title"])
             llm_out = local_llama_call(prompt=prompt, max_tokens=LLM_MAX_TOKENS, temperature=LLM_TEMPERATURE)
+            if llm_out == "__AUTH_FAILURE__":
+                llm_available = False
+                llm_out = ""
             if llm_out and len(llm_out.strip()) > 10:
                 summary_md = llm_out
-            else:
-                logger.warning("LLM server returned empty or short output; falling back to extractive summary")
-        else:
-            logger.warning("LLM server unavailable; using fallback extractive summary")
 
         # fallback extractive summary: first 2 sentences
         if not summary_md:

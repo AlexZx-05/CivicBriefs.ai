@@ -33,11 +33,11 @@ def send_email(recipient: str, subject: str, body: str) -> bool:
             server.login(EMAIL_USER, EMAIL_PASS)
             server.send_message(msg)
 
-        print(f"✅ Email sent to {recipient}")
+        print(f"Email sent to {recipient}")
         return True
 
     except Exception as e:
-        print(f"❌ Failed to send email to {recipient}: {e}")
+        print(f"Failed to send email to {recipient}: {e}")
         return False
 
 
@@ -56,7 +56,7 @@ def send_mail_with_attachment(to_email: str, subject: str, body: str, attachment
 
         # Attach file
         if not os.path.exists(attachment_path):
-            print(f"❌ Attachment not found: {attachment_path}")
+            print(f"Attachment not found: {attachment_path}")
             return False
 
         with open(attachment_path, "rb") as f:
@@ -71,9 +71,9 @@ def send_mail_with_attachment(to_email: str, subject: str, body: str, attachment
             server.login(EMAIL_USER, EMAIL_PASS)
             server.send_message(msg)
 
-        print(f"📧 Email with attachment sent to {to_email}")
+        print(f"Email with attachment sent to {to_email}")
         return True
 
     except Exception as e:
-        print(f"❌ Failed to send email with attachment to {to_email}: {e}")
+        print(f"Failed to send email with attachment to {to_email}: {e}")
         return False

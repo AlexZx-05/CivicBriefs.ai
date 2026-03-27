@@ -51,6 +51,35 @@ class ReportStore:
                 return self._serialize(doc)
         return None
 
+    def history_for_user(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_email: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        if self.collection is None:
+            return []
+        queries: List[Dict[str, Any]] = []
+        if user_id:
+            queries.append({"user_id": user_id})
+        if user_email:
+            queries.append({"user_email": user_email.strip().lower()})
+        if not queries:
+            return []
+
+        capped = max(1, min(100, int(limit)))
+        for query in queries:
+            try:
+                cursor = self.collection.find(query, sort=[("date", -1)]).limit(capped)
+                docs = list(cursor)
+            except PyMongoError as exc:
+                logger.error("report_store: failed to fetch report history: %s", exc)
+                return []
+            if docs:
+                return [self._serialize(doc) for doc in docs]
+        return []
+
     def _serialize(self, doc: Dict[str, Any]) -> Dict[str, Any]:
         payload = doc.get("report") or {}
         summary = payload.get("test_summary") or {}
