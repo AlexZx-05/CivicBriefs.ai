@@ -38,6 +38,12 @@ class CapsuleScheduler:
         if self._thread and self._thread.is_alive():
             return
         self._stop_event.clear()
+        # Catch-up check on startup: if backend starts after scheduled time,
+        # dispatch can still happen in the same process without waiting.
+        try:
+            self._tick()
+        except Exception:
+            logger.exception("capsule_scheduler: startup tick failed")
         self._thread = threading.Thread(target=self._loop, name="capsule-scheduler", daemon=True)
         self._thread.start()
         logger.info(
@@ -78,8 +84,9 @@ class CapsuleScheduler:
         self._generate_capsule_artifacts()
         message = self._build_email_message(date_str)
         if message is None:
-            logger.info("capsule_scheduler: skipping email dispatch for %s (0 articles)", date_str)
-            return
+            # Do not silently skip dispatch; still notify users once/day with dashboard link.
+            message = self._build_fallback_message(date_str)
+            logger.info("capsule_scheduler: using fallback email body for %s", date_str)
         subject, body = message
         pdf_path = self._resolve_pdf_path(date_str)
 
@@ -182,6 +189,16 @@ class CapsuleScheduler:
                 + "<p>- CivicBriefs.AI</p>"
             )
             return subject, fallback
+
+    def _build_fallback_message(self, date_str: str) -> tuple[str, str]:
+        subject = f"CivicBriefs Daily Capsule - {date_str}"
+        body = (
+            "<p>Hi {name},</p>"
+            "<p>Your daily capsule update is available.</p>"
+            "<p>Open your CivicBriefs dashboard to read the latest sections and analysis.</p>"
+            "<p>- CivicBriefs.AI</p>"
+        )
+        return subject, body
 
     def _resolve_pdf_path(self, date_str: str) -> Path | None:
         project_root = Path(__file__).resolve().parents[2]
