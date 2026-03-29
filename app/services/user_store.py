@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 import bcrypt
+from bson import ObjectId
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
@@ -20,24 +21,35 @@ class UserStore:
     def __init__(self) -> None:
         self.users_mem: Dict[str, dict] = {}
         self.sessions_mem: Dict[str, str] = {}
+        self.password_resets_mem: Dict[str, dict] = {}
         self.users_col: Optional[Collection] = None
         self.sessions_col: Optional[Collection] = None
+        self.password_resets_col: Optional[Collection] = None
 
         try:
             self.users_col = get_collection("users")
             self.sessions_col = get_collection("sessions")
+            self.password_resets_col = get_collection("password_resets")
             self.users_col.create_index("id", unique=True)
             self.users_col.create_index("email", unique=True)
             self.sessions_col.create_index("token", unique=True)
             self.sessions_col.create_index("user_id")
             self.sessions_col.create_index("expires_at", expireAfterSeconds=0)
+            self.password_resets_col.create_index("token", unique=True)
+            self.password_resets_col.create_index("user_id")
+            self.password_resets_col.create_index("expires_at", expireAfterSeconds=0)
         except PyMongoError:
             self.users_col = None
             self.sessions_col = None
+            self.password_resets_col = None
 
     @property
     def _mongo_ready(self) -> bool:
-        return self.users_col is not None and self.sessions_col is not None
+        return (
+            self.users_col is not None
+            and self.sessions_col is not None
+            and self.password_resets_col is not None
+        )
 
     # ---------- CREATE USER ----------
     def create_user(self, *, name: str, email: str, password: str, phone_number: str | None):
@@ -109,6 +121,103 @@ class UserStore:
 
         self.sessions_mem[token] = user_id
         return token
+
+    # ---------- PASSWORD RESET ----------
+    def create_password_reset_token(self, *, email: str, ttl_minutes: int = 30) -> Optional[str]:
+        email_norm = email.lower().strip()
+        token = str(uuid.uuid4())
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(minutes=max(5, int(ttl_minutes)))
+
+        if self._mongo_ready:
+            assert self.users_col is not None
+            assert self.password_resets_col is not None
+            user = self.users_col.find_one({"email": email_norm}, projection={"id": 1, "_id": 1})
+            if not user:
+                return None
+            # Support both new docs (string id field) and legacy docs (_id only).
+            user_id = str(user.get("id") or user.get("_id"))
+            self.password_resets_col.delete_many({"user_id": user_id})
+            self.password_resets_col.insert_one(
+                {
+                    "token": token,
+                    "user_id": user_id,
+                    "created_at": now,
+                    "expires_at": expires_at,
+                }
+            )
+            return token
+
+        user = None
+        for candidate in self.users_mem.values():
+            if candidate["email"] == email_norm:
+                user = candidate
+                break
+        if not user:
+            return None
+        user_id = str(user["id"])
+        stale = [t for t, rec in self.password_resets_mem.items() if rec.get("user_id") == user_id]
+        for t in stale:
+            self.password_resets_mem.pop(t, None)
+        self.password_resets_mem[token] = {"user_id": user_id, "expires_at": expires_at}
+        return token
+
+    def reset_password_with_token(self, *, token: str, new_password: str) -> bool:
+        token = (token or "").strip()
+        if not token:
+            return False
+        new_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+        now = datetime.now(timezone.utc)
+
+        def _is_expired(value: object) -> bool:
+            if not isinstance(value, datetime):
+                return True
+            expires_at = value
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            return expires_at < now
+
+        if self._mongo_ready:
+            assert self.password_resets_col is not None
+            assert self.users_col is not None
+            rec = self.password_resets_col.find_one({"token": token})
+            if not rec:
+                return False
+            expires_at = rec.get("expires_at")
+            if _is_expired(expires_at):
+                self.password_resets_col.delete_one({"token": token})
+                return False
+            user_id = str(rec.get("user_id", ""))
+            if not user_id:
+                self.password_resets_col.delete_one({"token": token})
+                return False
+            update = self.users_col.update_one({"id": user_id}, {"$set": {"password_hash": new_hash}})
+            if update.modified_count == 0 and ObjectId.is_valid(user_id):
+                update = self.users_col.update_one({"_id": ObjectId(user_id)}, {"$set": {"password_hash": new_hash}})
+            self.password_resets_col.delete_one({"token": token})
+            if update.modified_count == 1:
+                # Revoke active sessions so old sessions cannot continue after password reset.
+                self.sessions_col.delete_many({"user_id": user_id})
+                return True
+            return False
+
+        rec = self.password_resets_mem.get(token)
+        if not rec:
+            return False
+        expires_at = rec.get("expires_at")
+        if _is_expired(expires_at):
+            self.password_resets_mem.pop(token, None)
+            return False
+        user_id = rec.get("user_id")
+        user = self.users_mem.get(user_id)
+        self.password_resets_mem.pop(token, None)
+        if not user:
+            return False
+        user["password_hash"] = new_hash
+        stale_sessions = [session_token for session_token, uid in self.sessions_mem.items() if uid == user_id]
+        for session_token in stale_sessions:
+            self.sessions_mem.pop(session_token, None)
+        return True
 
     def resolve_token(self, token: str):
         if not token:

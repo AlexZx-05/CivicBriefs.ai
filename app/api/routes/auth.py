@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+import os
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
 from app.services.mailer import send_email
@@ -32,6 +33,15 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=64)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=10, max_length=200)
+    new_password: str = Field(..., min_length=6, max_length=64)
 
 
 def _public_user(user: dict) -> dict:
@@ -113,6 +123,47 @@ def login_user(payload: LoginRequest):
     token = user_store.create_session(user_id=user["id"])
     subscriber_store.ensure_subscriber(name=user["name"], email=user["email"])
     return {"token": token, "user": _public_user(user)}
+
+
+@router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest, request: Request):
+    # Always return success to avoid leaking whether an email exists.
+    token = user_store.create_password_reset_token(email=payload.email)
+    if token:
+        public_base = (
+            os.getenv("APP_PUBLIC_BASE_URL", "").strip()
+            or str(request.base_url).rstrip("/")
+        )
+        reset_link = f"{public_base}/?reset_token={token}"
+        send_email(
+            recipient=payload.email,
+            subject="CivicBriefs Password Reset",
+            body=(
+                "<p>Hi,</p>"
+                "<p>We received a request to reset your CivicBriefs password.</p>"
+                f'<p><a href="{reset_link}">Click here to reset password</a></p>'
+                "<p>This link is valid for 30 minutes.</p>"
+                "<p>If you did not request this, you can ignore this email.</p>"
+            ),
+        )
+    return {
+        "status": "success",
+        "message": "If your email is registered, a password reset link has been sent.",
+    }
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    ok = user_store.reset_password_with_token(
+        token=payload.token,
+        new_password=payload.new_password,
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token.",
+        )
+    return {"status": "success", "message": "Password has been reset successfully."}
 
 
 @router.get("/session")

@@ -281,6 +281,25 @@ PORTAL_HTML = """
             line-height: 1.4;
         }
 
+        .inline-link {
+            background: none;
+            border: 0;
+            padding: 0;
+            margin: 2px 0 0;
+            color: #1f6f54;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            font-family: "Manrope", "Public Sans", sans-serif;
+            align-self: flex-start;
+        }
+
+        .inline-link:hover {
+            color: #18573f;
+        }
+
         label {
             display: flex;
             flex-direction: column;
@@ -516,6 +535,7 @@ PORTAL_HTML = """
                             <button type="button" class="toggle-pass" data-target="loginPassword">Show</button>
                         </div>
                     </label>
+                    <button type="button" class="inline-link" id="openForgotBtn">Forgot password?</button>
                     <div class=\"status\" data-status=\"login\"></div>
                     <button class=\"primary\" type=\"submit\">Access dashboard</button>
                 </form>
@@ -543,6 +563,38 @@ PORTAL_HTML = """
                     <div class=\"status\" data-status=\"signup\"></div>
                     <button class=\"primary\" type=\"submit\">Create account</button>
                 </form>
+
+                <form id=\"forgotForm\" class=\"auth-form\">
+                    <h3>Reset password</h3>
+                    <p class="form-note">Enter your registered email to receive a reset link.</p>
+                    <label>Email
+                        <input type=\"email\" id=\"forgotEmail\" placeholder=\"you@example.com\" required />
+                    </label>
+                    <div class=\"status\" data-status=\"forgot\"></div>
+                    <button class=\"primary\" type=\"submit\">Send reset link</button>
+                    <button type="button" class="inline-link" id="backToLoginFromForgot">Back to login</button>
+                </form>
+
+                <form id=\"resetForm\" class=\"auth-form\">
+                    <h3>Create new password</h3>
+                    <p class="form-note">Set a new password for your account.</p>
+                    <input type="hidden" id="resetToken" />
+                    <label>New password
+                        <div class="password-row">
+                            <input type=\"password\" id=\"resetPassword\" placeholder=\"New password\" required minlength=\"6\" />
+                            <button type="button" class="toggle-pass" data-target="resetPassword">Show</button>
+                        </div>
+                    </label>
+                    <label>Confirm password
+                        <div class="password-row">
+                            <input type=\"password\" id=\"resetPasswordConfirm\" placeholder=\"Confirm password\" required minlength=\"6\" />
+                            <button type="button" class="toggle-pass" data-target="resetPasswordConfirm">Show</button>
+                        </div>
+                    </label>
+                    <div class=\"status\" data-status=\"reset\"></div>
+                    <button class=\"primary\" type=\"submit\">Update password</button>
+                    <button type="button" class="inline-link" id="backToLoginFromReset">Back to login</button>
+                </form>
             </div>
         </section>
     </div>
@@ -560,7 +612,12 @@ PORTAL_HTML = """
         const forms = {
             login: document.getElementById('loginForm'),
             signup: document.getElementById('signupForm'),
+            forgot: document.getElementById('forgotForm'),
+            reset: document.getElementById('resetForm'),
         };
+        const openForgotBtn = document.getElementById('openForgotBtn');
+        const backToLoginFromForgot = document.getElementById('backToLoginFromForgot');
+        const backToLoginFromReset = document.getElementById('backToLoginFromReset');
 
         function syncFormStageHeight(activeTab) {
             if (!formStage) return;
@@ -646,6 +703,86 @@ PORTAL_HTML = """
             };
             handleAuth('/auth/signup', payload, 'signup', event.submitter);
         });
+
+        forms.forgot.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const btn = event.submitter;
+            setStatus('forgot', 'Sending reset link...', '');
+            btn.disabled = true;
+            try {
+                const payload = { email: document.getElementById('forgotEmail').value };
+                const res = await fetch('/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Unable to send reset link.');
+                }
+                setStatus('forgot', data.message || 'If your email is registered, reset link has been sent.', 'success');
+            } catch (err) {
+                setStatus('forgot', err.message || 'Unable to send reset link.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        forms.reset.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const btn = event.submitter;
+            const token = document.getElementById('resetToken').value;
+            const pass = document.getElementById('resetPassword').value;
+            const confirmPass = document.getElementById('resetPasswordConfirm').value;
+            if (pass !== confirmPass) {
+                setStatus('reset', 'Passwords do not match.', 'error');
+                return;
+            }
+            setStatus('reset', 'Updating password...', '');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, new_password: pass }),
+                });
+                const raw = await res.text();
+                let data = {};
+                try {
+                    data = raw ? JSON.parse(raw) : {};
+                } catch (_) {
+                    data = { detail: raw || 'Unable to reset password.' };
+                }
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Unable to reset password.');
+                }
+                setStatus('reset', 'Password updated. Please login with your new password.', 'success');
+                setTimeout(() => setActiveTab('login'), 900);
+            } catch (err) {
+                setStatus('reset', err.message || 'Unable to reset password.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        if (openForgotBtn) {
+            openForgotBtn.addEventListener('click', () => setActiveTab('forgot'));
+        }
+        if (backToLoginFromForgot) {
+            backToLoginFromForgot.addEventListener('click', () => setActiveTab('login'));
+        }
+        if (backToLoginFromReset) {
+            backToLoginFromReset.addEventListener('click', () => setActiveTab('login'));
+        }
+
+        const resetToken = new URLSearchParams(window.location.search).get('reset_token');
+        if (resetToken) {
+            const tokenInput = document.getElementById('resetToken');
+            if (tokenInput) {
+                tokenInput.value = resetToken;
+            }
+            setActiveTab('reset');
+        }
     })();
     </script>
 </body>
