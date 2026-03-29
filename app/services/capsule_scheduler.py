@@ -38,20 +38,23 @@ class CapsuleScheduler:
         if self._thread and self._thread.is_alive():
             return
         self._stop_event.clear()
-        # Catch-up check on startup: if backend starts after scheduled time,
-        # dispatch can still happen in the same process without waiting.
-        try:
-            self._tick()
-        except Exception:
-            logger.exception("capsule_scheduler: startup tick failed")
         self._thread = threading.Thread(target=self._loop, name="capsule-scheduler", daemon=True)
         self._thread.start()
+        # Run startup catch-up in background so FastAPI startup is not blocked
+        # by capsule generation/subprocess work.
+        threading.Thread(target=self._startup_catchup, name="capsule-startup-catchup", daemon=True).start()
         logger.info(
             "capsule_scheduler: started (daily %02d:%02d %s)",
             self.hour,
             self.minute,
             str(self.timezone),
         )
+
+    def _startup_catchup(self) -> None:
+        try:
+            self._tick()
+        except Exception:
+            logger.exception("capsule_scheduler: startup tick failed")
 
     def stop(self) -> None:
         self._stop_event.set()
