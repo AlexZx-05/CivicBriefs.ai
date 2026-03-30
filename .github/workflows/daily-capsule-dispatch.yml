@@ -1,0 +1,27 @@
+name: Daily Capsule Dispatch
+
+on:
+  schedule:
+    # 06:05 Asia/Kolkata = 00:35 UTC
+    - cron: "35 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger capsule dispatch on Render
+        env:
+          CAPSULE_TRIGGER_URL: ${{ secrets.CAPSULE_TRIGGER_URL }}
+          CAPSULE_DISPATCH_TOKEN: ${{ secrets.CAPSULE_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$CAPSULE_TRIGGER_URL" ] || [ -z "$CAPSULE_DISPATCH_TOKEN" ]; then
+            echo "Missing required GitHub secrets."
+            exit 1
+          fi
+          curl --fail --show-error --silent \
+            --max-time 600 \
+            -X POST "$CAPSULE_TRIGGER_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Dispatch-Token: $CAPSULE_DISPATCH_TOKEN" \
+            -d "{}"

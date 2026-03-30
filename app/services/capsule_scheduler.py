@@ -82,7 +82,7 @@ class CapsuleScheduler:
         self._last_dispatch_date = today
         self.dispatch_for_date(today)
 
-    def dispatch_for_date(self, date_str: str) -> None:
+    def dispatch_for_date(self, date_str: str) -> int:
         logger.info("capsule_scheduler: dispatch started for %s", date_str)
         self._generate_capsule_artifacts()
         message = self._build_email_message(date_str)
@@ -96,7 +96,7 @@ class CapsuleScheduler:
         recipients = subscriber_store.list_active_subscribers()
         if not recipients:
             logger.info("capsule_scheduler: no active subscribers")
-            return
+            return 0
 
         sent_count = 0
         for subscriber in recipients:
@@ -125,6 +125,7 @@ class CapsuleScheduler:
             sent_count += 1
 
         logger.info("capsule_scheduler: dispatch completed for %s (sent=%d)", date_str, sent_count)
+        return sent_count
 
     def _generate_capsule_artifacts(self) -> None:
         """
