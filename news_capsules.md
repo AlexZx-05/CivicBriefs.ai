@@ -1,144 +1,12 @@
-# News Capsule    Date : 2026-03-29
+# News Capsule    Date : 2026-03-30
 
 ## Polity & Governance
 
-### 1. The Netherlands and Ukraine strengthen cooperation with a conference in Breda
+### 1. Law Minister Gautam pays courtesy call on Chief Justice Raut
 
 ---
-### The Netherlands and Ukraine strengthen cooperation with a conference in Breda — Summary
-The Netherlands and Ukraine are enhancing their cooperation through the annual Lviv Conference, held this year in Breda, focusing on Ukraine's EU accession process. Key discussions will involve the rule of law, governance, and economic sectors, with participation from Dutch and Ukrainian officials. The conference underscores the Netherlands' commitment to supporting Ukraine amidst ongoing Russian aggression and emphasizes the importance of meeting the Copenhagen criteria for EU membership.
-
-**Relevant PYQ**  
-- Q1: (title / snippet / source) — Note: This question could relate to international relations and cooperation, allowing students to analyze the dynamics between EU member states and candidate countries.
-
-**Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — Note: This article is relevant for topics on international relations and EU integration, providing insights into the practical aspects of diplomatic support and economic collaboration.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/ukraine/2026/03/ukraine-260327-nl-mofa01.htm  
-- Chunks: 2
-
-
----
-
-## Economy
-
-_No articles in this category_
-
-## International Relations
-
-### 1. Minister Anand meets with Germany's Federal Minister for Foreign Affairs at G7 Foreign Ministers' Meeting
-
----
-### Minister Anand meets with Germany's Federal Minister for Foreign Affairs at G7 Foreign Ministers' Meeting — Summary
-On March 27, 2026, Canadian Foreign Minister Anita Anand met with German Foreign Minister Johann Wadephul during the G7 Foreign Ministers' Meeting in France. They celebrated the 75th anniversary of Canada-Germany diplomatic relations and emphasized their commitment to enhancing collaboration on global security, energy, critical minerals, artificial intelligence, and trade. The discussions also focused on addressing geopolitical challenges in the Middle East, Ukraine, and Sudan, aiming to strengthen collective security and global stability.
-
-**Relevant PYQ**  
-- Q1: (title / snippet / source) — This article provides context for questions related to international relations and diplomatic engagements, particularly in the context of G7 discussions and Canada-Germany relations.
-
-**Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — This article is relevant for topics on international relations and global security, helping students understand current diplomatic dynamics and collaborative efforts among nations.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/canada/2026/canada-260327-canada01.htm  
-- Chunks: 1
-
-
----
-
-### 2. PH, China resume bilateral talks on SCS
-
----
-### PH, China resume bilateral talks on SCS — Summary
-The Philippines and China have resumed bilateral talks on the South China Sea, convening in Quangzhou on March 28, 2026. The discussions, led by Philippine Foreign Affairs Undersecretary Leo Herrera-Lim and Chinese Vice President Sun Weidong, aim to address cooperation topics, including the Code of Conduct in the South China Sea. The meetings also seek to explore potential collaboration in non-sensitive areas amidst global energy supply disruptions, with a focus on energy security.
-
-**Relevant PYQ**  
-- None — No specific previous year questions are attached for relevance.
-
-**Relevant Syllabus**  
-- None — No specific syllabus snippets are attached for relevance.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-pna01.htm  
-- Chunks: 2
-
-
----
-
-### 3. UNHCR calls for urgent support in Lebanon as humanitarian catastrophe looms
-
----
-### UNHCR calls for urgent support in Lebanon as humanitarian catastrophe looms — Summary
-The UNHCR has raised alarms over a deepening humanitarian crisis in Lebanon, where over 1 million people have been displaced due to ongoing conflict and Israeli strikes. Many are living in overcrowded shelters, facing increased risks of violence and exploitation, particularly vulnerable groups like the elderly and disabled. The UNHCR emphasizes the urgent need for support to mitigate further risks and enhance protection services, with an initial funding appeal of over $60 million to address immediate and long-term needs.
-
-**Relevant PYQ**  
-- None — no relevant previous year questions attached.
-
-**Relevant Syllabus**  
-- None — no relevant syllabus snippets attached.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-unhcr01.htm  
-- Chunks: 3
-
-
----
-
-### 4. Indictment alleges China party official interested in Taiwan legislative appointment
-
----
-### Indictment alleges China party official interested in Taiwan legislative appointment — Summary
-The indictment of Xu Chunying, a China-born spouse and chair of a Taiwanese new immigrants organization, reveals her communications with Chinese officials regarding the legislative prospects of Li Chen-hsiu, a naturalized Taiwanese citizen. Xu is charged under Taiwan's Anti-Infiltration Act for allegedly facilitating political activities linked to China, including forwarding Li's profile to Chinese officials and organizing support for candidates aligned with Chinese interests. This case highlights concerns over foreign influence in Taiwan's political landscape, particularly regarding the involvement of naturalized citizens.
-
-**Relevant PYQ**  
-- None — No specific previous year questions are attached for relevance.
-
-**Relevant Syllabus**  
-- None — No specific syllabus snippets are attached for relevance.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/taiwan/2026/taiwan-260327-cna02.htm  
-- Chunks: 5
-
-
----
-
-### 5. EU support brings urgent aid to families forced to flee their homes in Lebanon
-
----
-### EU support brings urgent aid to families forced to flee their homes in Lebanon — Summary
-The European Union, alongside Ireland and Italy, has facilitated a humanitarian airbridge to deliver emergency relief to over one million displaced individuals in Lebanon due to escalating conflicts. This fifth EU-funded flight aims to provide essential supplies, including thermal blankets and kitchen sets, to families affected by the violence. The ongoing humanitarian crisis highlights the urgent need for international support and coordination with local authorities to address the growing needs of displaced populations.
-
-**Relevant PYQ**  
-- Q1: (title / snippet / source) — This article can inform students about the role of international organizations in humanitarian crises, relevant for questions on global governance and humanitarian aid.
-
-**Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — The article relates to topics on international relations and humanitarian assistance, useful for understanding the EU's role in global crises and preparing for related exam questions.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-eeas05.htm  
-- Chunks: 3
-
-
----
-
-### 6. Senior Iranian official warns IAEA's Grossi over 'biased, destructive' remarks
-
----
-### Senior Iranian official warns IAEA's Grossi over 'biased, destructive' remarks — Summary
-A senior Iranian diplomat criticized IAEA Director General Rafael Grossi for his "biased and destructive" comments regarding Iran's nuclear program, suggesting that US-Israeli aggression could end it. The Iranian official, Kazem Gharibabadi, condemned Grossi's failure to address attacks on Iran's nuclear facilities, particularly the Bushehr power plant, and warned that such remarks exacerbate tensions. Russia also expressed concern over the dangers of these strikes, highlighting the potential for severe consequences.
+### Law Minister Gautam pays courtesy call on Chief Justice Raut — Summary
+Minister for Law, Justice and Parliamentary Affairs Sobita Gautam met with Chief Justice Prakash Man Singh Raut, accompanied by Supreme Court judges, in a courtesy call. This meeting underscores the collaborative relationship between the executive and judiciary in Nepal, with the Law Minister serving as an ex-officio member of the Judicial Council, highlighting the constitutional framework governing judicial appointments and oversight.
 
 **Relevant PYQ**  
 - None — No relevant previous year questions attached.
@@ -148,71 +16,201 @@ A senior Iranian diplomat criticized IAEA Director General Rafael Grossi for his
 
 ---
 
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/iran/2026/03/iran-260327-presstv18.htm  
-- Chunks: 2
+- Source: Khabarhub.com  
+- URL: https://english.khabarhub.com/2026/29/541621/  
+- Chunks: 1
 
 
 ---
 
-### 7. U.S., Guyana launch medical mission LAMAT 2026
+### 2. SBY honors Juwono Sudarsono's role in military-civilian unity
 
 ---
-### U.S., Guyana launch medical mission LAMAT 2026 — Summary
-The U.S. and Guyana launched the Lesser Antilles Medical Assistance Team (LAMAT) 2026 mission on March 16, 2026, in Georgetown, aimed at enhancing healthcare collaboration. This two-week initiative involves U.S. Air Force medical professionals working alongside local healthcare providers to deliver specialized medical services, including primary care and minor surgeries. The mission underscores the importance of health security cooperation and aims to strengthen regional health resilience while providing real-world training for U.S. Air Force personnel.
+### SBY honors Juwono Sudarsono's role in military-civilian unity — Summary
+Former Indonesian Defense Minister Juwono Sudarsono passed away, prompting condolences from Susilo Bambang Yudhoyono (SBY), Indonesia's sixth president. SBY highlighted Sudarsono's significant contributions to fostering unity between military and civilian sectors in Indonesia. This acknowledgment underscores the importance of civil-military relations in maintaining national stability and governance.
 
 **Relevant PYQ**  
-- Q1: (None) — No relevant PYQ snippets attached.
-
-**Relevant Syllabus**  
-- S1: (None) — No relevant syllabus snippets attached.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-southcom01.htm  
-- Chunks: 4
-
-
----
-
-### 8. UN sets up task force regarding Strait of Hormuz amid Mideast hostilities
-
----
-### UN sets up task force regarding Strait of Hormuz amid Mideast hostilities — Summary
-The UN Secretary-General Antonio Guterres has formed a task force to address humanitarian needs in the Strait of Hormuz, amid escalating Middle Eastern conflicts that threaten maritime trade and agricultural production. The task force aims to facilitate fertilizer trade and ensure the protection of shipping routes, while respecting national sovereignty and international legal frameworks. Concurrently, the UN reports significant displacement in Lebanon and the Occupied Palestinian Territories due to ongoing hostilities, with over 1 million people displaced in Lebanon alone.
-
-**Relevant PYQ**  
-- None — No relevant PYQ snippets attached.
+- None — No relevant PYQs attached.
 
 **Relevant Syllabus**  
 - None — No relevant syllabus snippets attached.
 
 ---
 
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/iran/2026/03/iran-260328-pdo02.htm  
+- Source: Antaranews.com  
+- URL: https://en.antaranews.com/news/410258/sby-honors-juwono-sudarsonos-role-in-military-civilian-unity  
+- Chunks: 1
+
+
+---
+
+### 3. Former defense minister Juwono Sudarsono passed away aged 84
+
+---
+### Former defense minister Juwono Sudarsono passed away aged 84 — Summary
+Professor Juwono Sudarsono, a prominent figure in Indonesian politics, passed away at the age of 84. He served as the defense minister and ambassador, contributing significantly to Indonesia's defense and foreign relations. His burial at Kalibata Heroes Cemetery reflects his status and contributions to the nation.
+
+**Relevant PYQ**  
+- None — No specific PYQs attached for relevance.
+
+**Relevant Syllabus**  
+- None — No specific syllabus snippets attached for relevance.
+
+---
+
+- Source: Antaranews.com  
+- URL: https://en.antaranews.com/news/410238/former-defense-minister-juwono-sudarsono-passed-away-aged-84  
+- Chunks: 1
+
+
+---
+
+### 4. Rajnath Singh leads high-level review on West Asia situation
+
+---
+### Rajnath Singh leads high-level review on West Asia situation — Summary
+Defence Minister Rajnath Singh chaired the first meeting of the Informal Group of Ministers (IGoM) in New Delhi to assess the evolving situation in West Asia. The meeting emphasized a proactive and coordinated approach to mitigate impacts on various sectors in India. Key discussions included the need for close monitoring, timely communication of policy initiatives, and collaboration with state administrations to counter misinformation. The government reaffirmed its commitment to safeguarding Indian citizens from potential conflicts.
+
+**Relevant PYQ**  
+- Q1: (title / snippet / source) — This article provides context on India's foreign policy and crisis management, which can be useful for understanding questions related to international relations and national security in UPSC exams.
+
+**Relevant Syllabus**  
+- S1: (syllabus snippet / topic / note) — The article relates to the topic of "International Relations" in the syllabus, particularly in understanding India's strategic responses to global conflicts and their implications for domestic policy.
+
+---
+
+- Source: BusinessLine  
+- URL: https://www.thehindubusinessline.com/news/national/rajnath-singh-leads-high-level-review-on-west-asia-situation/article70798799.ece  
 - Chunks: 3
 
 
 ---
 
-### 9. Venezuelan Diplomats Arrive in Washington for Talks with US State Department
+## Economy
+
+### 1. PM Modi praises India's T20 WC success; hails Anahat Singh, Gulveer Singh for global feats
 
 ---
-### Venezuelan Diplomats Arrive in Washington for Talks with US State Department — Summary
-Venezuelan diplomats, led by Vice Minister Oliver Blanco, are in Washington, D.C. for discussions with U.S. State Department officials to strengthen bilateral relations. The delegation aims to reestablish Venezuela's diplomatic presence and address concerns of its citizens. This visit marks a significant step in the gradual restoration of contacts between Venezuela and the U.S., with both sides expressing a commitment to cooperation.
+### PM Modi praises India's T20 WC success; hails Anahat Singh, Gulveer Singh for global feats — Summary
+Prime Minister Narendra Modi commended India's success in the T20 World Cup and recognized the achievements of young athletes Anahat Singh and Gulveer Singh on the global stage. This acknowledgment highlights the government's support for sports and the importance of nurturing talent in India. Such recognition can inspire future generations and promote sports as a viable career path.
 
 **Relevant PYQ**  
-- Q1: (title / snippet / source) — This article can help students understand current international relations, particularly U.S.-Latin America dynamics, which may be relevant for questions on foreign policy.
+- None — source unclear.
 
 **Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — This article relates to the topic of international relations and diplomacy, providing a contemporary example of bilateral negotiations that students can use for topic mapping and revision.
+- None — source unclear.
 
 ---
 
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-sputnik02.htm  
+- Source: The Times of India  
+- URL: https://economictimes.indiatimes.com/news/sports/pm-modi-praises-indias-t20-wc-success-hails-anahat-singh-gulveer-singh-for-global-feats/articleshow/129877504.cms  
+- Chunks: 1
+
+
+---
+
+### 2. Sustained rise in crude oil prices may hit remittances, stoke inflation: Finmin report
+
+---
+### Sustained rise in crude oil prices may hit remittances, stoke inflation: Finmin report — Summary
+The Finance Ministry's report indicates that sustained increases in crude oil prices could negatively impact remittances from Gulf Cooperation Council (GCC) countries, which account for a significant portion of India's remittance inflows. Despite a rise in remittances to $36.9 billion in Q3 FY26, the outlook remains sensitive to oil price fluctuations. Additionally, higher oil prices may contribute to inflationary pressures and affect the current account balance, necessitating careful policy responses from the government.
+
+**Relevant PYQ**  
+- None — No specific previous year questions are attached for relevance.
+
+**Relevant Syllabus**  
+- None — No specific syllabus snippets are attached for relevance.
+
+---
+
+- Source: BusinessLine  
+- URL: https://www.thehindubusinessline.com/economy/sustained-rise-in-crude-oil-prices-may-hit-remittances-stoke-inflation-finmin-report/article70798720.ece  
+- Chunks: 3
+
+
+---
+
+### 3. Iran war tests India's macroeconomic resilience, government data shows
+
+---
+### Iran war tests India's macroeconomic resilience, government data shows — Summary
+The Indian economy, while initially stable in March 2026, faces challenges due to the US-Israel war on Iran, impacting inflation and oil prices. Retail inflation reached a 10-month high of 3.21% in February, indicating potential economic strain as crude oil prices rise. In response, the Indian government has implemented measures such as reducing excise duties on fuel, increasing LPG production, prioritizing gas for fertiliser plants, and launching a ₹497 crore RELIEF scheme to support exporters against rising freight costs.
+
+**Relevant PYQ**  
+- Q1: (title / snippet / source) — This article provides context on current economic challenges, which can be useful for understanding macroeconomic stability and policy responses in UPSC exam scenarios.
+
+**Relevant Syllabus**  
+- S1: (syllabus snippet / topic / note) — The article relates to the economic policies and their implications, relevant for topics on economic development and policy measures in the UPSC syllabus.
+
+---
+
+- Source: Thefederal.com  
+- URL: https://thefederal.com/category/business/iran-war-indias-macroeconomic-resilience-government-data-236647  
+- Chunks: 1
+
+
+---
+
+### 4. Rajnath Singh chairs first IGoM meet on West Asia situation, calls for proactive and coordinated response
+
+---
+### Rajnath Singh chairs first IGoM meet on West Asia situation, calls for proactive and coordinated response — Summary
+Rajnath Singh chaired the inaugural meeting of the Inter-Ministerial Group (IGoM) to address the evolving situation in West Asia, emphasizing the need for a proactive and coordinated response from India. The discussions are particularly relevant in light of ongoing tensions in the region, including conflicts involving Israel and Iran. This meeting underscores India's strategic interest in maintaining stability in West Asia, which has implications for its foreign policy and security considerations.
+
+**Relevant PYQ**  
+- Q1: (title / snippet / source) — This question could relate to India's foreign policy and its approach to regional conflicts, useful for revision on India's diplomatic strategies.
+
+**Relevant Syllabus**  
+- S1: (syllabus snippet / topic / note) — This article connects to the syllabus on international relations, particularly India's engagement with West Asia, aiding in topic mapping for exam preparation.
+
+---
+
+- Source: The Times of India  
+- URL: https://economictimes.indiatimes.com/news/defence/rajnath-singh-chairs-first-igom-meet-on-west-asia-situation-calls-for-proactive-and-coordinated-response-israel-iran-war-india/articleshow/129875842.cms  
+- Chunks: 1
+
+
+---
+
+## International Relations
+
+### 1. Senior Israeli Military Official Raises Concerns Over Troop Availability and Operational Capacity
+
+---
+### Senior Israeli Military Official Raises Concerns Over Troop Availability and Operational Capacity — Summary
+Israel's military chief of staff, Lt. Gen. Eyal Zamir, has warned that the Israel Defense Forces (IDF) face a critical personnel shortage of approximately 12,000 troops, risking operational collapse. This warning was issued during a closed-door meeting with the security cabinet, highlighting systemic issues exacerbated by ongoing multi-front conflicts, including operations in Gaza and tensions with Hezbollah. The military's recruitment challenges, particularly regarding ultra-Orthodox conscription exemptions, further complicate the situation, raising concerns about the sustainability of Israel's military capacity.
+
+**Relevant PYQ**  
+- Q1: (title / snippet / source) — This question could relate to military strategy and personnel management in conflict zones, useful for understanding the implications of military readiness in international relations.
+
+**Relevant Syllabus**  
+- S1: (syllabus snippet / topic / note) — This article is relevant for topics on national security and defense policies, aiding in the analysis of military effectiveness and recruitment challenges in contemporary conflicts.
+
+---
+
+- Source: Naturalnews.com  
+- URL: https://www.naturalnews.com/2026-03-29-israeli-military-official-raises-concerns-troop-availability.html  
+- Chunks: 63
+
+
+---
+
+### 2. Israeli Foreign Minister congratulates Nepali counterpart
+
+---
+### Israeli Foreign Minister congratulates Nepali counterpart — Summary
+Israeli Foreign Minister Gideon Saar congratulated Nepal's new Foreign Affairs Minister, Shishir Khanal, on his appointment. Saar expressed a desire to enhance the longstanding friendship between Israel and Nepal, focusing on strengthening bilateral relations in technology, agriculture, and labor sectors. This development highlights the ongoing diplomatic engagement and potential for increased cooperation between the two nations.
+
+**Relevant PYQ**  
+- None — No relevant previous year questions attached.
+
+**Relevant Syllabus**  
+- None — No relevant syllabus snippets attached.
+
+---
+
+- Source: Khabarhub.com  
+- URL: https://english.khabarhub.com/2026/29/541591/  
 - Chunks: 1
 
 
@@ -224,26 +222,7 @@ _No articles in this category_
 
 ## Science & Technology
 
-### 1. Official Chinese media unveils world's first case of soft-body bionic manta ray submersible detecting simulated underwater explosive devices
-
----
-### Official Chinese media unveils world's first case of soft-body bionic manta ray submersible detecting simulated underwater explosive devices — Summary
-China has introduced the world's first soft-body bionic manta ray submersible capable of detecting underwater explosive devices in low-visibility conditions. This innovative submersible features advanced sonar technology, exceptional endurance, and pressure resistance, making it suitable for military applications, particularly in complex environments. Its design allows for autonomous navigation and group operations, enhancing its operational capabilities against threats like submarines.
-
-**Relevant PYQ**  
-- None — No specific previous year questions are attached for relevance.
-
-**Relevant Syllabus**  
-- None — No specific syllabus snippets are attached for relevance.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/china/2026/03/china-260327-globaltimes02.htm  
-- Chunks: 2
-
-
----
+_No articles in this category_
 
 ## Social Issues
 
@@ -251,86 +230,44 @@ _No articles in this category_
 
 ## Security
 
-### 1. First Australian-built Boxer Combat Reconnaissance Vehicles roll off assembly line
+### 1. Jewish journalist and researcher kidnapped and murdered in Johannesburg
 
 ---
-### First Australian-built Boxer Combat Reconnaissance Vehicles roll off assembly line — Summary
-The first seven Australian-built Boxer Combat Reconnaissance Vehicles (CRVs) have been completed at Rheinmetall Defence Australia's facility in Queensland, marking a significant milestone for Australia's defence industry. A total of 211 Boxers will be produced, enhancing the capabilities of the Australian Defence Force (ADF) and creating over 500 jobs across the country. This initiative also strengthens defence collaboration between Australia and Germany, with additional contracts for Boxer Heavy Weapon Carrier vehicles benefiting the Australian economy.
+### Jewish journalist and researcher kidnapped and murdered in Johannesburg — Summary
+Steven Gruzd, a prominent journalist and researcher in Johannesburg's Jewish community, was kidnapped and murdered on March 30, 2026. He was the head of the African Governance and Diplomacy Archives at the South African Institute of International Affairs. Following his disappearance, a joint operation led to the arrest of five suspects, and his body was discovered in a remote area. The incident is believed to be an "express kidnapping," a growing trend in South Africa, rather than motivated by antisemitism or political reasons.
 
 **Relevant PYQ**  
-- Q1: (title / snippet / source) — This article highlights advancements in military technology and defence partnerships, which could be relevant for questions on national security and defence policy in UPSC exams.
+- Q1: (title / snippet / source) — This incident highlights issues of security and crime in South Africa, relevant for questions on governance and public safety.
 
 **Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — The article relates to the topic of "Defence and Security" in the syllabus, providing insights into indigenous defence production and international collaborations that can be useful for exam preparation.
+- S1: (syllabus snippet / topic / note) — The case can be linked to topics on crime and security in urban areas, useful for understanding contemporary challenges in governance and policy-making.
 
 ---
 
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/wmd/library/news/australia/2026/australia-260327-audod02.htm  
+- Source: Israelnationalnews.com  
+- URL: https://www.israelnationalnews.com/news/424748  
 - Chunks: 2
 
 
 ---
 
-### 2. Foreign Minister Tsahkna's comment on Russian disinformation
+### 2. Thomas Byrne in Ukraine: Kyiv is a city that appears at peace, but lives with war
 
 ---
-### Foreign Minister Tsahkna's comment on Russian disinformation — Summary
-On March 24-25, 2026, Russia launched a significant aerial attack on Ukraine, deploying around 1,000 missiles and drones, indicating its persistent aim to dominate Ukraine and destabilize European security. Estonia's Foreign Minister emphasized Ukraine's right to self-defense and highlighted that drone incursions into Estonian airspace were a direct result of Russia's aggression. The Estonian government has communicated these concerns to the Russian Embassy, underscoring the potential for future incidents in Europe as long as the conflict continues.
+### Thomas Byrne in Ukraine: Kyiv is a city that appears at peace, but lives with war — Summary
+The article describes the stark contrast between the outward appearance of Kyiv as a peaceful city and the harsh realities of life under ongoing war conditions. Daily life for Ukrainians is marked by power outages, water supply issues, and the constant threat of attacks, particularly during a brutal winter exacerbated by Russian assaults on infrastructure. The UN reports significant civilian casualties, highlighting the severe impact of the conflict on the population. Despite these challenges, there is a sense of resilience and hope among the people for a future of peace and recovery.
 
 **Relevant PYQ**  
-- Q1: (title / snippet / source) — This question could relate to understanding the geopolitical implications of Russia's actions and the responses from neighboring countries, useful for revision on international relations.
+- None — source unclear.
 
 **Relevant Syllabus**  
-- S1: (syllabus snippet / topic / note) — This article is relevant for topics on international security and conflict resolution, aiding in topic mapping for current affairs related to global security dynamics.
+- None — source unclear.
 
 ---
 
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/intell/library/news/2026/intell-260327-estonia-mfa01.htm  
-- Chunks: 1
-
-
----
-
-### 3. Sentinel Program advances with silo prototype
-
----
-### Sentinel Program advances with silo prototype — Summary
-The LGM-35A Sentinel intercontinental ballistic missile program has reached a significant milestone with the groundbreaking of a full-scale launch silo prototype in Utah. This initiative, developed with Northrop Grumman, aims to modernize the U.S. nuclear triad by implementing a modular construction approach that enhances efficiency and reduces costs. The program is on track for initial capability by the early 2030s, ensuring a reliable and secure land-based deterrent for the future.
-
-**Relevant PYQ**  
-- None — No relevant previous year questions attached.
-
-**Relevant Syllabus**  
-- None — No relevant syllabus snippets attached.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-usaf01.htm  
-- Chunks: 2
-
-
----
-
-### 4. NATO Military Committee highlights Air and Space power during Allied Air Command visit
-
----
-### NATO Military Committee highlights Air and Space power during Allied Air Command visit — Summary
-Admiral Giuseppe Cavo Dragone, Chairman of the NATO Military Committee, visited Allied Air Command to emphasize the strategic importance of Air and Space Power for collective deterrence and defense. The discussions focused on the Integrated Air and Missile Defense (IAMD) framework, which includes initiatives like Eastern Sentry, aimed at enhancing NATO's operational capabilities against evolving threats. The visit underscored the necessity of mutual trust among Allies and the integration of diverse military assets to ensure the security of NATO airspace, particularly along the eastern flank.
-
-**Relevant PYQ**  
-- None — No specific PYQ snippets provided for relevance.
-
-**Relevant Syllabus**  
-- None — No specific syllabus snippets provided for relevance.
-
----
-
-- Source: Globalsecurity.org  
-- URL: https://www.globalsecurity.org/military/library/news/2026/03/mil-260327-nato-aircom01.htm  
-- Chunks: 3
+- Source: TheJournal.ie  
+- URL: https://www.thejournal.ie/readme/ukraine-war-6993842-Mar2026/  
+- Chunks: 6
 
 
 ---
@@ -341,8 +278,67 @@ _No articles in this category_
 
 ## Geography
 
-_No articles in this category_
+### 1. Korean Fried Chicken Tops Global Survey as Most Popular K-Food Worldwide in 2026, Survey Shows
+
+---
+### Korean Fried Chicken Tops Global Survey as Most Popular K-Food Worldwide in 2026, Survey Shows — Summary
+Korean fried chicken has emerged as the most popular Korean dish globally, according to a 2025 survey conducted by South Korea's Ministry of Agriculture, Food and Rural Affairs. The survey, which included 11,000 consumers across 22 cities, revealed that Korean fried chicken was preferred by 14% of respondents, followed by kimchi and bibimbap. The rise in popularity of Korean cuisine is attributed to the global Hallyu wave, with significant increases in the consumption and export of Korean food products, particularly in the U.S., Europe, and Asia.
+
+**Relevant PYQ**  
+- None — No specific PYQ snippets provided for relevance.
+
+**Relevant Syllabus**  
+- None — No specific syllabus snippets provided for relevance.
+
+---
+
+- Source: Ibtimes.com.au  
+- URL: https://www.ibtimes.com.au/korean-fried-chicken-tops-global-survey-most-popular-k-food-worldwide-2026-survey-shows-1864836  
+- Chunks: 5
+
+
+---
 
 ## Ethics & Society
 
-_No articles in this category_
+### 1. Wisconsin Gov. signs landmark IHRA antisemitism definition bill into law
+
+---
+### Wisconsin Gov. signs landmark IHRA antisemitism definition bill into law — Summary
+Wisconsin Governor Tony Evers has signed AB 446 into law, adopting the International Holocaust Remembrance Alliance (IHRA) Working Definition of Antisemitism for state use. This law mandates that state agencies consider this definition when evaluating discriminatory intent and applying enhanced criminal penalties. With 37 states endorsing the IHRA definition, Wisconsin's legislation is seen as a significant step in combating rising antisemitism and providing a framework for public institutions to address anti-Jewish bias effectively.
+
+**Relevant PYQ**  
+- Q1: (title / snippet / source) — This question could relate to the broader context of legislative measures against discrimination, useful for revision on civil rights and social justice topics.
+
+**Relevant Syllabus**  
+- S1: (syllabus snippet / topic / note) — This article is relevant for topics on social justice and human rights, providing a contemporary example of legislative action against discrimination, which can be useful for topic mapping in preparation.
+
+---
+
+- Source: Israelnationalnews.com  
+- URL: https://www.israelnationalnews.com/news/424746  
+- Chunks: 3
+
+
+---
+
+### 2. Series of psalms based on Troubles launched in Belfast
+
+---
+### Series of psalms based on Troubles launched in Belfast — Summary
+The Presbyterian Church in Ireland has launched a series of eight psalms reflecting the experiences of victims and first responders during the Troubles, supported by the Department for Foreign Affairs. The psalms were introduced at a service in Belfast, incorporating narratives from focus groups across Northern Ireland, emphasizing themes of reconciliation and remembrance. This initiative aims to give voice to the pain and stories of those affected by the conflict, highlighting the ongoing impact of the Troubles on communities.
+
+**Relevant PYQ**  
+- None — No relevant PYQ snippets attached.
+
+**Relevant Syllabus**  
+- None — No relevant syllabus snippets attached.
+
+---
+
+- Source: RTE  
+- URL: https://www.rte.ie/news/regional/2026/0329/1565684-ulster-psalms-troubles/  
+- Chunks: 3
+
+
+---

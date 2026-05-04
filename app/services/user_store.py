@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import bcrypt
 from bson import ObjectId
@@ -28,19 +28,23 @@ class UserStore:
 
         try:
             self.users_col = get_collection("users")
-            self.sessions_col = get_collection("sessions")
-            self.password_resets_col = get_collection("password_resets")
             self.users_col.create_index("id", unique=True)
             self.users_col.create_index("email", unique=True)
+        except PyMongoError:
+            self.users_col = None
+        try:
+            self.sessions_col = get_collection("sessions")
             self.sessions_col.create_index("token", unique=True)
             self.sessions_col.create_index("user_id")
             self.sessions_col.create_index("expires_at", expireAfterSeconds=0)
+        except PyMongoError:
+            self.sessions_col = None
+        try:
+            self.password_resets_col = get_collection("password_resets")
             self.password_resets_col.create_index("token", unique=True)
             self.password_resets_col.create_index("user_id")
             self.password_resets_col.create_index("expires_at", expireAfterSeconds=0)
         except PyMongoError:
-            self.users_col = None
-            self.sessions_col = None
             self.password_resets_col = None
 
     @property
@@ -50,6 +54,10 @@ class UserStore:
             and self.sessions_col is not None
             and self.password_resets_col is not None
         )
+
+    @property
+    def _users_mongo_ready(self) -> bool:
+        return self.users_col is not None
 
     # ---------- CREATE USER ----------
     def create_user(self, *, name: str, email: str, password: str, phone_number: str | None):
@@ -244,6 +252,26 @@ class UserStore:
             assert self.sessions_col is not None
             self.sessions_col.delete_one({"token": token})
         self.sessions_mem.pop(token, None)
+
+    def list_registered_users(self) -> List[dict]:
+        if self._users_mongo_ready:
+            assert self.users_col is not None
+            docs = self.users_col.find({}, projection={"name": 1, "email": 1})
+            out: List[dict] = []
+            for doc in docs:
+                email = str(doc.get("email", "")).strip().lower()
+                if not email:
+                    continue
+                out.append({"name": str(doc.get("name", "")).strip(), "email": email})
+            return out
+
+        out: List[dict] = []
+        for user in self.users_mem.values():
+            email = str(user.get("email", "")).strip().lower()
+            if not email:
+                continue
+            out.append({"name": str(user.get("name", "")).strip(), "email": email})
+        return out
 
     @staticmethod
     def _public_user_from_doc(doc: Optional[dict]) -> Optional[dict]:

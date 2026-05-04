@@ -2367,6 +2367,7 @@ DASHBOARD_HTML = """
             selectedDate: null,
             initialized: false,
             isLoading: false,
+            cacheByRange: {},
         };
         const scoreInsightState = {
             selectedDate: null,
@@ -3294,6 +3295,11 @@ DASHBOARD_HTML = """
             if (!capsuleList || !capsuleDetail || !capsuleStatus) {
                 return;
             }
+            const cached = capsuleState.cacheByRange[range];
+            if (cached && Array.isArray(cached.capsules)) {
+                applyCapsulePayload(range, cached);
+                return;
+            }
             capsuleState.isLoading = true;
             toggleCapsuleTabs(true);
             capsuleState.capsules = [];
@@ -3314,16 +3320,8 @@ DASHBOARD_HTML = """
                 if (!res.ok) {
                     throw new Error(data.detail || 'Unable to fetch capsules.');
                 }
-                capsuleState.capsules = Array.isArray(data.capsules) ? data.capsules : [];
-                if (!capsuleState.capsules.length) {
-                    capsuleStatus.textContent = 'No capsules available for this window yet.';
-                    capsuleList.innerHTML = '<p class="capsule-placeholder">Generate a capsule and check back soon.</p>';
-                    capsuleDetail.innerHTML = '<p class="capsule-placeholder">No capsule selected.</p>';
-                    return;
-                }
-                capsuleStatus.textContent = `Showing ${capsuleState.capsules.length} ${range} capsule${capsuleState.capsules.length > 1 ? 's' : ''} - ${formatWindowRange(data.window)}`;
-                renderCapsuleList();
-                selectCapsule(capsuleState.capsules[0].date);
+                capsuleState.cacheByRange[range] = data;
+                applyCapsulePayload(range, data);
             } catch (err) {
                 capsuleStatus.textContent = err.message || 'Failed to load capsules.';
                 capsuleList.innerHTML = '<p class="capsule-placeholder">Unable to load capsules right now.</p>';
@@ -3332,6 +3330,37 @@ DASHBOARD_HTML = """
                 capsuleState.isLoading = false;
                 toggleCapsuleTabs(false);
             }
+        }
+
+        function applyCapsulePayload(range, data) {
+            capsuleState.capsules = Array.isArray(data.capsules) ? data.capsules : [];
+            if (!capsuleState.capsules.length) {
+                capsuleStatus.textContent = 'No capsules available for this window yet.';
+                capsuleList.innerHTML = '<p class="capsule-placeholder">Generate a capsule and check back soon.</p>';
+                capsuleDetail.innerHTML = '<p class="capsule-placeholder">No capsule selected.</p>';
+                return;
+            }
+            capsuleStatus.textContent = `Showing ${capsuleState.capsules.length} ${range} capsule${capsuleState.capsules.length > 1 ? 's' : ''} - ${formatWindowRange(data.window)}`;
+            renderCapsuleList();
+            selectCapsule(capsuleState.capsules[0].date);
+        }
+
+        function prefetchCapsuleRange(range) {
+            if (!range || capsuleState.cacheByRange[range]) {
+                return;
+            }
+            fetch(`/news/capsules?window=${range}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then((res) => (res.ok ? res.json() : null))
+                .then((data) => {
+                    if (data && Array.isArray(data.capsules)) {
+                        capsuleState.cacheByRange[range] = data;
+                    }
+                })
+                .catch(() => {
+                    // non-blocking prefetch
+                });
         }
 
         function renderCapsuleList() {
@@ -3384,7 +3413,9 @@ DASHBOARD_HTML = """
                     body: JSON.stringify({ date }),
                 });
                 if (currentUser) {
-                    await renderMetrics(currentUser);
+                    setTimeout(() => {
+                        renderMetrics(currentUser).catch(() => {});
+                    }, 0);
                 }
                 logLocalActivity('Capsule opened', `Read capsule for ${formatDateLabel(date)}`, date);
                 renderActivityFromState();
@@ -3586,16 +3617,18 @@ DASHBOARD_HTML = """
                 currentUser = user;
                 welcomeTitle.textContent = `Hi, ${user.name}`;
                 welcomeSub.textContent = getDailyMotivation();
-                await renderMetrics(user);
+                statusEl.style.display = 'none';
+                contentEl.style.display = 'grid';
+                renderMetrics(user).catch(() => {});
                 renderFocus(user);
                 loadRecentActivity();
                 if (pauseCapsuleBtn) {
-                    await refreshSubscriptionState();
+                    refreshSubscriptionState().catch(() => {});
                 }
                 renderDailyQuote();
                 initializeCapsuleBoard();
-                statusEl.style.display = 'none';
-                contentEl.style.display = 'grid';
+                setTimeout(() => prefetchCapsuleRange('weekly'), 250);
+                setTimeout(() => prefetchCapsuleRange('monthly'), 700);
             } catch (err) {
                 statusEl.textContent = 'Session expired. Please log in again.';
                 clearSession();

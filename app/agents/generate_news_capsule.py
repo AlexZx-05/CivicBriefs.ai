@@ -17,19 +17,29 @@ import json
 import logging
 import uuid
 import warnings
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
 
 import numpy as np
-import nltk
-
-# Ensure sentence tokenizer available
 try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download("punkt", quiet=True)
-from nltk.tokenize import sent_tokenize
+    import nltk
+
+    # Ensure sentence tokenizer available
+    try:
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        nltk.download("punkt", quiet=True)
+    from nltk.tokenize import sent_tokenize  # type: ignore
+except Exception:
+    nltk = None
+
+    def sent_tokenize(text: str) -> List[str]:
+        # Lightweight fallback when nltk is unavailable.
+        if not text:
+            return []
+        return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
 
 # embeddings & DB
 from sentence_transformers import SentenceTransformer
@@ -48,8 +58,6 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.enums import TA_JUSTIFY
-
-import re
 
 # -----------------------
 # Config

@@ -1,13 +1,63 @@
 # app/api/routes/agents.py
+import logging
+
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.agents.news_agent import NewsAgent
 from app.agents.planner_agent import PlannerAgent
 from app.api.routes.auth import _current_user
+from app.services.mailer import send_email
 from app.services.report_store import report_store
 
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+logger = logging.getLogger(__name__)
+
+
+def _collect_recommendations(section_report: dict) -> list[str]:
+    rows = []
+    if not isinstance(section_report, dict):
+        return rows
+    for _, meta in section_report.items():
+        if not isinstance(meta, dict):
+            continue
+        label = str(meta.get("label") or "Section").strip()
+        accuracy = float(meta.get("accuracy") or 0.0)
+        rows.append((accuracy, label))
+    rows.sort(key=lambda item: item[0])
+    return [f"{label}: {score:.2f}%" for score, label in rows[:3]]
+
+
+def _mock_report_email_html(result: dict) -> str:
+    user = result.get("user") or {}
+    name = str(user.get("name") or "Aspirant").strip()
+    summary = result.get("test_summary") or {}
+    overall = float(summary.get("overall_accuracy") or 0.0)
+    total = int(summary.get("total_questions") or 0)
+    correct = int(summary.get("total_correct") or 0)
+    feedback_summary = str((result.get("feedback") or {}).get("summary") or "").strip()
+    if not feedback_summary:
+        feedback_summary = "Keep improving weak sections with regular timed practice and revision."
+
+    recos = _collect_recommendations(result.get("section_report") or {})
+    reco_html = "".join(f"<li>{item}</li>" for item in recos) if recos else "<li>No section breakdown available.</li>"
+
+    daily = (result.get("study_plan_sections") or {}).get("daily_plan") or {}
+    mcq = daily.get("mcq_per_day", "-")
+    revision = daily.get("revision_minutes", "-")
+    pyq_strategy = (result.get("study_plan_sections") or {}).get("pyq_strategy") or "Practice recent PYQs topic-wise."
+
+    return (
+        f"<p>Hi {name},</p>"
+        "<p>Your mock test report is ready.</p>"
+        f"<p><strong>Score:</strong> {overall:.2f}% ({correct}/{total} correct)</p>"
+        f"<p><strong>Suggestion:</strong> {feedback_summary}</p>"
+        "<p><strong>Sections needing priority:</strong></p>"
+        f"<ul>{reco_html}</ul>"
+        "<p><strong>Planner snapshot:</strong></p>"
+        f"<ul><li>Daily MCQs: {mcq}</li><li>Daily Revision: {revision} minutes</li><li>PYQ Strategy: {pyq_strategy}</li></ul>"
+        "<p>- CivicBriefs.AI</p>"
+    )
 
 @router.post("/news")
 def run_news_agent():
@@ -74,6 +124,40 @@ def submit_planner_test(payload: dict = Body(...)):
         result = agent.evaluate_test(user_id=user_id, answers=answers)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+    recipient_email = None
+    result_user = result.get("user") if isinstance(result, dict) else {}
+    if isinstance(result_user, dict):
+        recipient_email = result_user.get("email")
+    if not recipient_email and isinstance(payload, dict):
+        recipient_email = payload.get("user_email") or payload.get("email")
+
+    if recipient_email:
+        try:
+            email_html = _mock_report_email_html(result)
+            sent_ok = send_email(
+                recipient=str(recipient_email).strip().lower(),
+                subject="CivicBriefs Mock Test Result + Planner",
+                body=email_html,
+            )
+            result["email_dispatch"] = {
+                "attempted": True,
+                "recipient": str(recipient_email).strip().lower(),
+                "sent": bool(sent_ok),
+            }
+        except Exception:
+            logger.exception("agents: failed to email mock report to %s", recipient_email)
+            result["email_dispatch"] = {
+                "attempted": True,
+                "recipient": str(recipient_email).strip().lower(),
+                "sent": False,
+            }
+    else:
+        result["email_dispatch"] = {
+            "attempted": False,
+            "sent": False,
+            "reason": "No registered user email resolved for this submission.",
+        }
 
     return JSONResponse(content={"status": "success", "result": result})
 

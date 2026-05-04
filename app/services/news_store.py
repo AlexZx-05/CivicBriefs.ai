@@ -112,5 +112,28 @@ class NewsStore:
             logger.error("news_store: failed to persist capsule: %s", exc)
             return False
 
+    def has_capsule(
+        self,
+        *,
+        capsule_date: date | datetime | str,
+        capsule_type: str = "daily",
+    ) -> bool:
+        if self.collection is None:
+            return False
+        normalized_type = (capsule_type or "daily").strip().lower()
+        if normalized_type not in _ALLOWED_TYPES:
+            normalized_type = "daily"
+        date_str = _coerce_date(capsule_date)
+        try:
+            existing = self.collection.find_one(
+                {"date": date_str, "type": normalized_type},
+                projection={"news_capsule": 1},
+            )
+        except PyMongoError:
+            return False
+        if not existing:
+            return False
+        return _payload_has_articles(existing.get("news_capsule"))
+
 
 news_store = NewsStore()

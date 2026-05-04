@@ -6,15 +6,19 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List
 from zoneinfo import ZoneInfo
 
 from app.services.mailer import send_email
 from app.services.mailer import send_mail_with_attachment
+from app.services.daily_capsule_pdf import build_daily_capsule_pdf
+from app.services.lightweight_capsule import generate_lightweight_daily_capsule
+from app.services.news_store import news_store
 from app.services.news_summary import news_summary_service
 from app.services.subscriber_store import subscriber_store
+from app.services.user_store import user_store
 
 logger = logging.getLogger(__name__)
 
@@ -23,18 +27,35 @@ class CapsuleScheduler:
     """In-process scheduler for daily 6:00 AM capsule delivery."""
 
     def __init__(self) -> None:
+        self.enabled = os.getenv("CAPSULE_SCHEDULER_ENABLED", "1").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         tz_name = os.getenv("CAPSULE_TIMEZONE", "Asia/Kolkata")
         self.timezone = ZoneInfo(tz_name)
         self.hour = int(os.getenv("CAPSULE_SEND_HOUR", "6"))
         self.minute = int(os.getenv("CAPSULE_SEND_MINUTE", "0"))
         self.poll_seconds = max(15, int(os.getenv("CAPSULE_SCHEDULER_POLL_SECONDS", "30")))
         self.fetch_limit = max(1, int(os.getenv("CAPSULE_FETCH_LIMIT", "15")))
+        self.pipeline_mode = (os.getenv("CAPSULE_PIPELINE_MODE", "auto") or "auto").strip().lower()
+        self.backfill_days = max(0, int(os.getenv("CAPSULE_BACKFILL_DAYS", "3")))
+        self.dispatch_on_startup = os.getenv("CAPSULE_DISPATCH_ON_STARTUP", "1").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._last_dispatch_date: str | None = None
 
     def start(self) -> None:
+        if not self.enabled:
+            logger.info("capsule_scheduler: disabled via CAPSULE_SCHEDULER_ENABLED")
+            return
         if self._thread and self._thread.is_alive():
             return
         self._stop_event.clear()
@@ -52,9 +73,27 @@ class CapsuleScheduler:
 
     def _startup_catchup(self) -> None:
         try:
+            self._backfill_recent_days()
+            if self.dispatch_on_startup:
+                today = datetime.now(self.timezone).date().isoformat()
+                # Send once on startup so no manual terminal trigger is needed.
+                # Daily dedupe is still enforced per recipient by claim_delivery.
+                self._last_dispatch_date = today
+                self.dispatch_for_date(today)
             self._tick()
         except Exception:
             logger.exception("capsule_scheduler: startup tick failed")
+
+    def _backfill_recent_days(self) -> None:
+        if self.backfill_days <= 0:
+            return
+        now = datetime.now(self.timezone)
+        for offset in range(1, self.backfill_days + 1):
+            target_date = (now.date() - timedelta(days=offset)).isoformat()
+            if news_store.has_capsule(capsule_date=target_date, capsule_type="daily"):
+                continue
+            logger.info("capsule_scheduler: backfilling missing daily capsule for %s", target_date)
+            generate_lightweight_daily_capsule(capsule_date=target_date, fetch_limit=self.fetch_limit)
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -82,9 +121,56 @@ class CapsuleScheduler:
         self._last_dispatch_date = today
         self.dispatch_for_date(today)
 
+    def dispatch_to_subscriber(
+        self,
+        *,
+        email: str,
+        name: str | None = None,
+        date_str: str | None = None,
+        ensure_capsule: bool = True,
+    ) -> bool:
+        target_date = (date_str or datetime.now(self.timezone).date().isoformat()).strip()
+        normalized_email = str(email or "").strip().lower()
+        if not normalized_email:
+            return False
+
+        if ensure_capsule:
+            self._generate_capsule_artifacts(target_date)
+        self._ensure_daily_pdf(target_date)
+
+        message = self._build_email_message(target_date)
+        if message is None:
+            message = self._build_fallback_message(target_date)
+        subject, body = message
+        recipient_name = str(name or "").strip() or "Aspirant"
+        # Self-heal subscriber row so claim_delivery cannot fail due to missing record.
+        subscriber_store.ensure_subscriber(name=recipient_name, email=normalized_email)
+
+        claimed = subscriber_store.claim_delivery(email=normalized_email, for_date=target_date)
+        if not claimed:
+            return False
+
+        pdf_path = self._resolve_pdf_path(target_date)
+        personalized_body = body.replace("{name}", recipient_name)
+        if pdf_path and pdf_path.exists():
+            sent_ok = send_mail_with_attachment(
+                to_email=normalized_email,
+                subject=subject,
+                body=personalized_body,
+                attachment_path=str(pdf_path),
+            )
+        else:
+            sent_ok = send_email(recipient=normalized_email, subject=subject, body=personalized_body)
+
+        if not sent_ok:
+            subscriber_store.release_delivery_claim(email=normalized_email, for_date=target_date)
+            return False
+        return True
+
     def dispatch_for_date(self, date_str: str) -> int:
         logger.info("capsule_scheduler: dispatch started for %s", date_str)
-        self._generate_capsule_artifacts()
+        self._generate_capsule_artifacts(date_str)
+        self._ensure_daily_pdf(date_str)
         message = self._build_email_message(date_str)
         if message is None:
             # Do not silently skip dispatch; still notify users once/day with dashboard link.
@@ -93,9 +179,9 @@ class CapsuleScheduler:
         subject, body = message
         pdf_path = self._resolve_pdf_path(date_str)
 
-        recipients = subscriber_store.list_active_subscribers()
+        recipients = self._resolve_dispatch_recipients()
         if not recipients:
-            logger.info("capsule_scheduler: no active subscribers")
+            logger.info("capsule_scheduler: no recipients resolved")
             return 0
 
         sent_count = 0
@@ -104,11 +190,13 @@ class CapsuleScheduler:
             if not email:
                 continue
 
+            recipient_name = str(subscriber.get("name", "")).strip() or "Aspirant"
+            # Ensure recipient is claimable even if legacy users have no subscriber row yet.
+            subscriber_store.ensure_subscriber(name=recipient_name, email=email)
             claimed = subscriber_store.claim_delivery(email=email, for_date=date_str)
             if not claimed:
                 continue
 
-            recipient_name = str(subscriber.get("name", "")).strip() or "Aspirant"
             personalized_body = body.replace("{name}", recipient_name)
             if pdf_path and pdf_path.exists():
                 sent_ok = send_mail_with_attachment(
@@ -127,19 +215,60 @@ class CapsuleScheduler:
         logger.info("capsule_scheduler: dispatch completed for %s (sent=%d)", date_str, sent_count)
         return sent_count
 
-    def _generate_capsule_artifacts(self) -> None:
+    def _resolve_dispatch_recipients(self) -> List[dict]:
+        """
+        Merge active subscribers + registered users so all registered users
+        receive daily capsule emails. Deduplication is by normalized email.
+        """
+        merged: dict[str, dict] = {}
+        for row in subscriber_store.list_active_subscribers():
+            email = str(row.get("email", "")).strip().lower()
+            if not email:
+                continue
+            merged[email] = {
+                "name": str(row.get("name", "")).strip(),
+                "email": email,
+            }
+        for row in user_store.list_registered_users():
+            email = str(row.get("email", "")).strip().lower()
+            if not email:
+                continue
+            existing = merged.get(email)
+            if existing:
+                if not existing.get("name") and row.get("name"):
+                    existing["name"] = str(row.get("name", "")).strip()
+                continue
+            merged[email] = {
+                "name": str(row.get("name", "")).strip(),
+                "email": email,
+            }
+        return list(merged.values())
+
+    def _generate_capsule_artifacts(self, date_str: str) -> None:
         """
         Generate latest capsule once a day using the existing pipeline.
         Runs as subprocess so date-based filenames are recomputed correctly each run.
         """
+        if self.pipeline_mode == "light":
+            generate_lightweight_daily_capsule(capsule_date=date_str, fetch_limit=self.fetch_limit)
+            return
+
         project_root = Path(__file__).resolve().parents[2]
         cmd: List[str] = [sys.executable, "-m", "app.agents.generate_news_capsule"]
         env = os.environ.copy()
         env["FETCH_LIMIT"] = str(self.fetch_limit)
         try:
-            subprocess.run(cmd, cwd=str(project_root), env=env, check=False, timeout=1800)
+            result = subprocess.run(cmd, cwd=str(project_root), env=env, check=False, timeout=1800)
+            if result.returncode == 0:
+                return
+            logger.warning("capsule_scheduler: heavy pipeline exited with code %s", result.returncode)
+            if self.pipeline_mode == "auto":
+                logger.info("capsule_scheduler: using lightweight fallback for %s", date_str)
+                generate_lightweight_daily_capsule(capsule_date=date_str, fetch_limit=self.fetch_limit)
         except Exception:
             logger.exception("capsule_scheduler: capsule generation subprocess failed")
+            if self.pipeline_mode == "auto":
+                generate_lightweight_daily_capsule(capsule_date=date_str, fetch_limit=self.fetch_limit)
 
     def _build_email_message(self, date_str: str) -> tuple[str, str] | None:
         subject = f"CivicBriefs Daily Capsule - {date_str}"
@@ -208,6 +337,15 @@ class CapsuleScheduler:
         project_root = Path(__file__).resolve().parents[2]
         candidate = project_root / f"news_capsule_{date_str}.pdf"
         return candidate if candidate.exists() else None
+
+    def _ensure_daily_pdf(self, date_str: str) -> Path | None:
+        existing = self._resolve_pdf_path(date_str)
+        if existing is not None:
+            return existing
+        project_root = Path(__file__).resolve().parents[2]
+        output_path = project_root / f"news_capsule_{date_str}.pdf"
+        built = build_daily_capsule_pdf(date_str=date_str, output_path=str(output_path))
+        return built if built and built.exists() else None
 
 
 capsule_scheduler = CapsuleScheduler()

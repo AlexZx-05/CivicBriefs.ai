@@ -1,12 +1,15 @@
 import os
+import logging
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
+from app.services.capsule_scheduler import capsule_scheduler
 from app.services.mailer import send_email
 from app.services.subscriber_store import subscriber_store
 from app.services.user_store import user_store
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/test")
@@ -99,6 +102,12 @@ def signup_user(payload: SignupRequest):
 
     token = user_store.create_session(user_id=user["id"])
     subscriber_store.ensure_subscriber(name=user["name"], email=user["email"])
+    # New users should receive today's capsule immediately (max once/day is enforced).
+    try:
+        capsule_scheduler.dispatch_to_subscriber(email=user["email"], name=user["name"])
+    except Exception:
+        # Signup should not fail if capsule delivery fails temporarily.
+        logger.exception("auth: immediate capsule dispatch failed for signup email=%s", user["email"])
     return {"token": token, "user": _public_user(user)}
 
 
@@ -122,6 +131,12 @@ def login_user(payload: LoginRequest):
 
     token = user_store.create_session(user_id=user["id"])
     subscriber_store.ensure_subscriber(name=user["name"], email=user["email"])
+    # Existing users logging in should also receive today's capsule immediately
+    # (one-time/day is enforced by delivery claim).
+    try:
+        capsule_scheduler.dispatch_to_subscriber(email=user["email"], name=user["name"])
+    except Exception:
+        logger.exception("auth: immediate capsule dispatch failed for login email=%s", user["email"])
     return {"token": token, "user": _public_user(user)}
 
 
@@ -194,6 +209,10 @@ def subscribe_user(request: SubscriptionRequest):
         subject="Welcome to CivicBriefs.AI",
         body=f"<h3>Hi {request.name},</h3><p>Thanks for subscribing to our UPSC Daily Capsule!</p>",
     )
+    try:
+        capsule_scheduler.dispatch_to_subscriber(email=str(request.email), name=request.name)
+    except Exception:
+        logger.exception("auth: immediate capsule dispatch failed for subscribe email=%s", request.email)
 
     return {
         "status": "success",

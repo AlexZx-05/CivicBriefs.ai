@@ -19,9 +19,29 @@ jobs:
             echo "Missing required GitHub secrets."
             exit 1
           fi
-          curl --fail --show-error --silent \
+          if [[ "$CAPSULE_TRIGGER_URL" != *"/internal/capsule/dispatch" ]]; then
+            echo "CAPSULE_TRIGGER_URL should end with /internal/capsule/dispatch"
+            echo "Current value appears to be misconfigured."
+            exit 1
+          fi
+
+          echo "Triggering capsule dispatch endpoint..."
+          response_body_file="$(mktemp)"
+          http_code="$(curl --silent --show-error \
             --max-time 600 \
             -X POST "$CAPSULE_TRIGGER_URL" \
             -H "Content-Type: application/json" \
             -H "X-Dispatch-Token: $CAPSULE_DISPATCH_TOKEN" \
-            -d "{}"
+            -d "{}" \
+            --output "$response_body_file" \
+            --write-out "%{http_code}")"
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Dispatch failed with HTTP $http_code"
+            echo "Response body:"
+            cat "$response_body_file"
+            exit 1
+          fi
+
+          echo "Dispatch succeeded (HTTP $http_code)"
+          cat "$response_body_file"

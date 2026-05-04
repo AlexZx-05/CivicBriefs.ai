@@ -1172,6 +1172,12 @@ class PlannerAgent:
             return None
 
         identifier = identifier.strip()
+        if not identifier:
+            return None
+        # Primary app user identity is `users.id` (UUID), not Mongo `_id`.
+        user = self._users.find_one({"id": identifier})
+        if user:
+            return user
         if ObjectId.is_valid(identifier):
             user = self._users.find_one({"_id": ObjectId(identifier)})
             if user:

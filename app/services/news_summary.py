@@ -34,7 +34,7 @@ class NewsSummaryService:
     """Loads generated news capsules and exposes simplified summaries."""
 
     WINDOW_DAYS: Dict[str, int] = {
-        "daily": 1,
+        "daily": 7,
         "weekly": 7,
         "monthly": 30,
     }
@@ -59,7 +59,7 @@ class NewsSummaryService:
     # Public API
     # ------------------------------------------------------------------
     def get_summary(self, window: str) -> Dict[str, object]:
-        normalized_window, selected = self._prepare_window(window)
+        normalized_window, selected = self._prepare_window(window, fallback_to_latest=True)
 
         articles: List[ArticleSummary] = []
         for snap in selected:
@@ -86,17 +86,16 @@ class NewsSummaryService:
         }
 
     def get_capsules(self, window: str) -> Dict[str, object]:
-        normalized_window, selected = self._prepare_window(window)
-
-        start_date = min(snap["date"] for snap in selected)
-        end_date = max(snap["date"] for snap in selected)
-        ordered = sorted(selected, key=lambda snap: snap["date"], reverse=True)
+        normalized_window, selected = self._prepare_window(window, fallback_to_latest=False)
+        days = self.WINDOW_DAYS[normalized_window]
+        expanded = self._expand_timeline(selected, days=days)
+        ordered = sorted(expanded, key=lambda snap: snap["date"], reverse=True)
+        start_date = min(snap["date"] for snap in ordered)
+        end_date = max(snap["date"] for snap in ordered)
 
         capsules: List[Dict[str, object]] = []
         for snap in ordered:
             articles = snap["articles"]
-            if not articles:
-                continue
             sections = self._build_sections(articles, limit_per_section=0)
             totals = self._build_totals(articles)
             capsules.append(
@@ -108,16 +107,13 @@ class NewsSummaryService:
                 }
             )
 
-        if not capsules:
-            raise FileNotFoundError("Snapshots were empty; run the news pipeline first.")
-
         return {
             "range": normalized_window,
             "generated_at": datetime.utcnow().isoformat(timespec="seconds"),
             "window": {
                 "start": start_date.isoformat(),
                 "end": end_date.isoformat(),
-                "snapshots": len(selected),
+                "snapshots": len(ordered),
             },
             "capsules": capsules,
         }
@@ -148,6 +144,8 @@ class NewsSummaryService:
             return []
 
         normalized_window = (window or "daily").lower()
+        lookback_days = self.WINDOW_DAYS.get(normalized_window, 7)
+        cutoff_date = (datetime.utcnow().date() - timedelta(days=max(1, lookback_days) - 1)).isoformat()
         try:
             # Prefer exact pre-aggregated documents for requested window.
             if normalized_window in {"weekly", "monthly"}:
@@ -157,28 +155,31 @@ class NewsSummaryService:
                         query,
                         projection={"date": 1, "type": 1, "news_capsule": 1},
                     )
-                    .sort("date", 1)
+                    .sort("date", -1)
+                    .limit(lookback_days)
                 )
                 docs = list(cursor)
                 if not docs:
                     # Derive weekly/monthly from daily snapshots if pre-aggregates are absent.
-                    query = {"type": "daily"}
+                    query = {"type": "daily", "date": {"$gte": cutoff_date}}
                     cursor = (
                         self.collection.find(
                             query,
                             projection={"date": 1, "type": 1, "news_capsule": 1},
                         )
-                        .sort("date", 1)
+                        .sort("date", -1)
+                        .limit(lookback_days)
                     )
                     docs = list(cursor)
             else:
-                query = {"type": "daily"}
+                query = {"type": "daily", "date": {"$gte": cutoff_date}}
                 cursor = (
                     self.collection.find(
                         query,
                         projection={"date": 1, "type": 1, "news_capsule": 1},
                     )
-                    .sort("date", 1)
+                    .sort("date", -1)
+                    .limit(lookback_days)
                 )
                 docs = list(cursor)
         except PyMongoError as exc:
@@ -191,6 +192,7 @@ class NewsSummaryService:
             if snapshot["articles"]:
                 snapshots.append(snapshot)
 
+        snapshots.sort(key=lambda item: item["date"])
         return snapshots
 
     def _build_snapshot_from_document(self, document: Dict[str, object]) -> Dict[str, object]:
@@ -409,7 +411,12 @@ class NewsSummaryService:
                 sections[key] = ["None"]
         return sections
 
-    def _prepare_window(self, window: str) -> tuple[str, List[Dict[str, object]]]:
+    def _prepare_window(
+        self,
+        window: str,
+        *,
+        fallback_to_latest: bool,
+    ) -> tuple[str, List[Dict[str, object]]]:
         normalized = window.lower()
         if normalized not in self.WINDOW_DAYS:
             raise ValueError(f"Unsupported window '{window}'.")
@@ -419,10 +426,28 @@ class NewsSummaryService:
             raise FileNotFoundError("No news capsule snapshots available.")
 
         selected = self._select_snapshots(snapshots, normalized)
-        if not selected:
+        if not selected and fallback_to_latest:
             selected = [snapshots[-1]]
 
         return normalized, selected
+
+    def _expand_timeline(
+        self,
+        snapshots: Sequence[Dict[str, object]],
+        *,
+        days: int,
+    ) -> List[Dict[str, object]]:
+        timeline: List[Dict[str, object]] = []
+        by_date = {snap["date"]: snap for snap in snapshots}
+        today = datetime.utcnow().date()
+        for offset in range(days):
+            d = today - timedelta(days=offset)
+            existing = by_date.get(d)
+            if existing is not None:
+                timeline.append(existing)
+            else:
+                timeline.append({"path": "synthetic", "date": d, "articles": []})
+        return timeline
 
 
 news_summary_service = NewsSummaryService()
