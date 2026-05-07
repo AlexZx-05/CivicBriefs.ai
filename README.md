@@ -5,6 +5,9 @@ CivicBriefs.ai is an AI-powered UPSC preparation platform that combines three wo
 - Section-wise mock test + performance analytics
 - Personalized improvement planning
 
+## Demo Video
+▶️ [Watch Full Demo](https://drive.google.com/file/d/1fBkrOP1G0kAO2E-t8SB7_lU8afTQW3Ne/view?usp=sharing)
+
 ## Why this application was built
 UPSC aspirants usually use disconnected tools for news, practice tests, and planning. That creates three major issues:
 1. News is consumed but not converted into exam-focused revision.
